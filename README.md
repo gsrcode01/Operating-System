@@ -1,4 +1,3 @@
-# Operating-System
 # Operating System Assignment
 
 This repository contains Java implementations demonstrating **multithreading, thread pools, producer-consumer synchronization, and parallel matrix multiplication**.
