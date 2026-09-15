@@ -65,3 +65,23 @@ The matrices are generated automatically, and the program measures the execution
 ```bash
 javac ProducerConsumerThreadPool.java
 java ProducerConsumerThreadPool
+```
+### Matrix Multiplication
+
+```bash
+javac MultiplicationThreads.java
+java MultiplicationThreads
+```
+
+### Visualizer
+
+Open `index.html` in a web browser.
+
+## 🎯 Objectives
+
+- Understand Java multithreading
+- Implement thread pools
+- Understand producer-consumer synchronization
+- Perform parallel matrix multiplication
+- Understand task distribution among threads
+- Visualize concurrent execution
