@@ -1,0 +1,321 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Matrix Thread Pool Visualizer</title>
+    <style>
+        body {
+            margin: 0;
+            background: #0b1020;
+            color: #edf2ff;
+            font-family: Arial, sans-serif
+        }
+
+        .wrap {
+            max-width: 1400px;
+            margin: auto;
+            padding: 24px
+        }
+
+        h1 {
+            margin: 0 0 8px
+        }
+
+        .sub {
+            color: #9eaccb;
+            margin-bottom: 18px
+        }
+
+        button {
+            background: #17213b;
+            color: #fff;
+            border: 1px solid #40527c;
+            border-radius: 8px;
+            padding: 10px 16px;
+            margin: 4px;
+            cursor: pointer
+        }
+
+        button:disabled {
+            opacity: .4
+        }
+
+        .stats,
+        .pools,
+        .matrices {
+            display: grid;
+            gap: 12px
+        }
+
+        .stats {
+            grid-template-columns: repeat(6, 1fr)
+        }
+
+        .pools {
+            grid-template-columns: repeat(4, 1fr)
+        }
+
+        .matrices {
+            grid-template-columns: repeat(3, 1fr)
+        }
+
+        .card,
+        .pool,
+        .section {
+            background: #111a31;
+            border: 1px solid #293a62;
+            border-radius: 12px;
+            padding: 14px
+        }
+
+        .section {
+            margin-top: 16px
+        }
+
+        .label {
+            font-size: 12px;
+            color: #93a3c5
+        }
+
+        .value {
+            font-size: 22px;
+            font-weight: bold;
+            margin-top: 4px
+        }
+
+        .pool-title {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold
+        }
+
+        .bar {
+            height: 7px;
+            background: #202c49;
+            border-radius: 8px;
+            margin: 10px 0;
+            overflow: hidden
+        }
+
+        .fill {
+            height: 100%;
+            width: 0;
+            background: #42c995;
+            transition: .2s
+        }
+
+        .threads {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 4px
+        }
+
+        .thread {
+            height: 22px;
+            background: #1a2744;
+            border: 1px solid #304264;
+            border-radius: 4px;
+            font-size: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #7484a7
+        }
+
+        .thread.busy {
+            background: #e6a23c;
+            color: #111;
+            box-shadow: 0 0 10px #e6a23c
+        }
+
+        .thread.done {
+            background: #39b982;
+            color: #07140e
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%
+        }
+
+        td {
+            border: 1px solid #2b3b5d;
+            text-align: center;
+            padding: 7px
+        }
+
+        td.a,
+        td.b,
+        td.active {
+            background: #e6a23c;
+            color: #111;
+            font-weight: bold
+        }
+
+        td.result {
+            background: #123b33;
+            color: #8ff2c6;
+            font-weight: bold
+        }
+
+        .formula,
+        .log {
+            background: #080d19;
+            border: 1px solid #293a62;
+            border-radius: 9px;
+            padding: 14px;
+            font-family: Consolas, monospace
+        }
+
+        .log {
+            height: 170px;
+            overflow: auto;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #9eb0d3
+        }
+
+        @media(max-width:900px) {
+            .stats {
+                grid-template-columns: repeat(3, 1fr)
+            }
+
+            .pools,
+            .matrices {
+                grid-template-columns: 1fr 1fr
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <h1>🧵 Matrix Multiplication — Thread Pool Visualizer</h1>
+        <div class="sub">Visual demonstration of your Java program: 4 pools × 25 threads = 100 workers, with one task
+            per result element.</div>
+
+        <div>
+            <button id="start">▶ Start</button><button id="pause" disabled>⏸ Pause</button>
+            <button id="step" disabled>⏭ Step</button><button id="reset">↻ Reset</button>
+        </div>
+
+        <div class="stats">
+            <div class="card">
+                <div class="label">Matrix</div>
+                <div class="value">100 × 100</div>
+            </div>
+            <div class="card">
+                <div class="label">Pools</div>
+                <div class="value">4</div>
+            </div>
+            <div class="card">
+                <div class="label">Threads / Pool</div>
+                <div class="value">25</div>
+            </div>
+            <div class="card">
+                <div class="label">Worker Threads</div>
+                <div class="value">100</div>
+            </div>
+            <div class="card">
+                <div class="label">Java Tasks</div>
+                <div class="value">10,000</div>
+            </div>
+            <div class="card">
+                <div class="label">Demo Tasks</div>
+                <div class="value" id="done">0</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Thread Pools</h2>
+            <div class="pools" id="pools"></div>
+        </div>
+
+        <div class="section">
+            <h2>Current Thread + Multiplication</h2>
+            <div class="formula" id="formula">Press Start. A worker will calculate one result element.</div>
+        </div>
+
+        <div class="section">
+            <h2>Matrix Operation</h2>
+            <div class="matrices">
+                <div class="card">
+                    <h3>Matrix A</h3>
+                    <div id="A"></div>
+                </div>
+                <div class="card">
+                    <h3>Matrix B</h3>
+                    <div id="B"></div>
+                </div>
+                <div class="card">
+                    <h3>Result C = A × B</h3>
+                    <div id="C"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Execution Log</h2>
+            <div class="log" id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        const N = 5;
+        let A, B, C, current = 0, running = false, timer = null, ar = -1, ac = -1, ak = -1;
+
+        function matrix() { return Array.from({ length: N }, () => Array.from({ length: N }, () => Math.floor(Math.random() * 9) + 1)) }
+        function makePools() {
+            const root = document.getElementById("pools"); root.innerHTML = "";
+            for (let p = 0; p < 4; p++) {
+                root.innerHTML += `<div class="pool"><div class="pool-title"><span>Pool ${p + 1}</span><span id="pt${p}">0 / 25</span></div><div class="bar"><div class="fill" id="pf${p}"></div></div><div class="threads" id="th${p}"></div></div>`;
+                for (let t = 0; t < 25; t++)document.getElementById("th" + p).innerHTML += `<div class="thread" id="t-${p}-${t}">${t + 1}</div>`;
+            }
+        }
+        function table(id, m, type) {
+            let s = "<table>";
+            for (let i = 0; i < N; i++) {
+                s += "<tr>"; for (let j = 0; j < N; j++) {
+                    let cls = "";
+                    if (type == "A" && i == ar && j == ak) cls = "a";
+                    if (type == "B" && i == ak && j == ac) cls = "b";
+                    if (type == "C" && m[i][j] != null) cls = "result";
+                    if (type == "C" && i == ar && j == ac) cls = "active";
+                    s += `<td class="${cls}">${m[i][j] == null ? "—" : m[i][j]}</td>`;
+                } s += "</tr>"
+            } s += "</table>"; document.getElementById(id).innerHTML = s;
+        }
+        function render() { table("A", A, "A"); table("B", B, "B"); table("C", C, "C") }
+        function addLog(x) { document.getElementById("log").innerHTML = "<div>" + x + "</div>" + document.getElementById("log").innerHTML }
+        function reset() {
+            clearTimeout(timer); A = matrix(); B = matrix(); C = Array.from({ length: N }, () => Array(N).fill(null)); current = 0; running = false; ar = ac = ak = -1;
+            document.getElementById("done").textContent = 0; document.getElementById("formula").textContent = "Press Start. A worker will calculate one result element.";
+            document.getElementById("log").innerHTML = ""; makePools(); render();
+            document.getElementById("start").disabled = false; document.getElementById("pause").disabled = true; document.getElementById("step").disabled = true;
+        }
+        function task() {
+            if (current >= N * N) { finish(); return }
+            ar = Math.floor(current / N); ac = current % N; ak = current % N;
+            let pool = current % 4, thread = current % 25;
+            document.querySelectorAll(".thread.busy").forEach(x => { x.classList.remove("busy"); x.classList.add("done") });
+            let th = document.getElementById(`t-${pool}-${thread}`); th.classList.remove("done"); th.classList.add("busy");
+            let product = A[ar][ak] * B[ak][ac], sum = 0; for (let k = 0; k < N; k++)sum += A[ar][k] * B[k][ac];
+            C[ar][ac] = sum;
+            document.getElementById("done").textContent = ++current;
+            document.getElementById("pf" + pool).style.width = Math.min(100, current / (N * N) * 400) + "%";
+            document.getElementById("pt" + pool).textContent = `Thread ${thread + 1} working`;
+            document.getElementById("formula").innerHTML = `<b>Pool ${pool + 1} → Thread ${thread + 1}</b> | Task ${current}<br>A[${ar}][${ak}] × B[${ak}][${ac}] = <b>${A[ar][ak]} × ${B[ak][ac]} = ${product}</b><br>C[${ar}][${ac}] = <b>${sum}</b>`;
+            addLog(`[Pool ${pool + 1} | Thread ${thread + 1}] calculated C[${ar}][${ac}] = ${sum}`);
+            render();
+            if (running) timer = setTimeout(task, 450);
+        }
+        function start() { running = true; document.getElementById("start").disabled = true; document.getElementById("pause").disabled = false; document.getElementById("step").disabled = true; task() }
+        function pause() { running = false; clearTimeout(timer); document.getElementById("pause").disabled = true; document.getElementById("step").disabled = false; document.getElementById("start").disabled = false }
+        function step() { running = false; task(); document.getElementById("step").disabled = current >= N * N }
+        function finish() { running = false; clearTimeout(timer); ar = ac = ak = -1; render(); document.getElementById("pause").disabled = true; document.getElementById("step").disabled = true; document.getElementById("start").disabled = true; document.getElementById("formula").innerHTML = "<b>All worker tasks completed.</b><br>Main thread can now continue after awaitTermination()."; addLog("=== All worker tasks completed. Main thread continues. ===") }
+        document.getElementById("start").onclick = start; document.getElementById("pause").onclick = pause; document.getElementById("step").onclick = step; document.getElementById("reset").onclick = reset; reset();
+    </script>
+</body>
+
+</html>
