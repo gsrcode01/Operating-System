@@ -1,97 +1,50 @@
 # Operating System
 
-A collection of Operating System (OS) programs, lab exercises, and practical implementations created for learning core operating-system concepts.
+This repository contains practical implementations and interactive visualizations of operating-system concepts, with a focus on multithreading, synchronization, and concurrent execution.
 
-> **Note:** Update the topic list and run instructions below to match the exact files and programming languages in this repository.
+## Implementations
 
-## 📌 Overview
+### 1. Dining Philosophers Problem
+**Files:** `DiningPhilosophers.java`, `diningphilosopher.html`
 
-This repository is intended to help students understand how operating systems manage processes, memory, files, and shared resources. It can be used as a reference while studying Operating Systems concepts and completing lab exercises.
+The Java implementation models four philosophers sharing four chopsticks. A monitor coordinates access to the chopsticks, while semaphores put waiting philosophers to sleep and wake them when they can proceed. A FIFO queue and fairness checks help prevent starvation, and both chopsticks are reserved together so two philosophers cannot claim the same chopstick simultaneously.
 
-## 📚 Topics Covered
+The HTML simulator presents the philosophers' states—thinking, hungry, and eating—along with the shared chopsticks, waiting queue, and synchronization activity. Users can interact with the simulation and observe how the coordination rules work.
 
-Add or remove topics based on the programs available in this repository:
+**Concepts:** threads, monitors, semaphores, mutual exclusion, resource allocation, deadlock prevention, and starvation prevention.
 
-- Process management
-- CPU scheduling algorithms
-- Process synchronization
-- Semaphores and mutexes
-- Deadlock and deadlock prevention
-- The Dining Philosophers problem
-- Memory management
-- File management and system calls
+### 2. Reader–Writer Problem
+**Files:** `ReaderWriter.java`, `readerwriter.html`
 
-## 🗂️ Repository Structure
+The Java program demonstrates coordination between readers and writers that access shared data. Multiple readers can read concurrently, but a writer must have exclusive access so that no reader or other writer accesses the shared resource while writing.
 
-The exact structure depends on the files in the repository. A possible organization is:
+The HTML simulator visualizes readers and writers waiting for and accessing a shared ledger. It lets users compare semaphore-based synchronization with Java's `ReentrantReadWriteLock`, explore fair and reader-preference behavior, and observe how a continuous stream of readers can cause writer starvation when fairness is disabled.
 
-```text
-Operating-System/
-├── README.md
-├── <topic-or-experiment-folder>/
-│   └── <source-file>
-└── ...
-```
+**Concepts:** read–write synchronization, semaphores, locks, mutual exclusion, fairness, and starvation.
 
-Browse the folders and source files to find each experiment or implementation.
+### 3. Matrix Multiplication with Thread Pools
+**File:** `MultiplicationThreads.java`
 
-## ⚙️ Getting Started
+This program performs matrix multiplication using concurrent tasks managed by Java executor services. The work is split across thread pools so multiple matrix-result calculations can execute concurrently. It demonstrates how independent computations can be distributed among worker threads and how the program waits for tasks to complete.
 
-### 1. Clone the repository
+**Concepts:** multithreading, executor services, fixed thread pools, parallel computation, and task coordination.
 
-```bash
-git clone https://github.com/gsrcode01/Operating-System.git
-cd Operating-System
-```
+### 4. Producer–Consumer Problem with a Thread Pool
+**File:** `ProducerConsumerThreadPool.java`
 
-### 2. Open the required program
+This program models producers adding items to a shared bounded buffer and consumers removing them. Producers and consumers run as tasks in a thread pool. The bounded blocking queue coordinates access when the buffer is full or empty, demonstrating how concurrent tasks can safely exchange data.
 
-Navigate to the folder containing the program you want to run.
+**Concepts:** producer–consumer synchronization, bounded buffers, blocking queues, thread pools, and concurrency.
 
-### 3. Compile and run
+### 5. Matrix Thread-Pool Visualization
+**File:** `index.html`
 
-Use the commands appropriate for the language and source file. For example, **for a C program**:
+This browser-based visualization illustrates the matrix multiplication and thread-pool workflow. It provides a visual way to follow worker activity and the progress of parallel calculations, making the relationship between matrix operations and concurrent execution easier to understand.
 
-```bash
-gcc program.c -o program
-./program
-```
+**Concepts:** visualizing parallel execution, worker threads, thread pools, and matrix computation.
 
-For a Java program:
+## Technologies
 
-```bash
-javac Main.java
-java Main
-```
-
-Replace the example filenames with the actual filenames. These commands are examples; not every program in this repository will use them.
-
-## 🎯 Learning Objectives
-
-- Understand fundamental operating-system concepts through practical examples.
-- Explore process execution and CPU scheduling.
-- Learn synchronization techniques for concurrent programs.
-- Identify common issues such as race conditions, deadlocks, and starvation.
-- Strengthen problem-solving and systems-programming skills.
-
-## 🧪 How to Use This Repository
-
-1. Choose a topic or lab experiment.
-2. Read the source code and comments.
-3. Run the program using the appropriate compiler or runtime.
-4. Test it with different inputs where applicable.
-5. Review the output and connect it to the underlying OS concept.
-
-## 🤝 Contributing
-
-Suggestions and improvements are welcome. You can open an issue to report a problem or submit a pull request with a clear description of your changes.
-
-## 👤 Author
-
-**Girdhar Singh Rajpurohit**
-
-- GitHub: [@gsrcode01](https://github.com/gsrcode01)
-
-## 📄 License
-
-No license is specified here. Check the repository for an existing `LICENSE` file before reusing or distributing its code.
+- **Java** — concurrent program implementations.
+- **Java Concurrency API** — threads, executor services, semaphores, locks, and blocking queues.
+- **HTML, CSS, and JavaScript** — interactive visualizations for synchronization and thread-pool concepts.
