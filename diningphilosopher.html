@@ -1,0 +1,977 @@
+<title>Dining Philosophers Simulator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    rel="stylesheet">
+<style>
+    /* Layout: round table with monitor at centre (left), controls and monitor state (right), event log and algorithm below. */
+    :root {
+        --bg: #edf0f4;
+        --surface: #ffffff;
+        --surface-2: #f4f6f9;
+        --ink: #14202b;
+        --muted: #566474;
+        --line: #d3dbe3;
+        --accent: #2457d6;
+        --on-accent: #ffffff;
+        --think: #7a8896;
+        --hungry: #a85f00;
+        --eat: #16803c;
+        --bad: #c0362c;
+        --font-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+        --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+            --bg: #0d1318;
+            --surface: #151d25;
+            --surface-2: #1b252f;
+            --ink: #e5ecf2;
+            --muted: #9aa9b8;
+            --line: #28333e;
+            --accent: #7ea6ff;
+            --on-accent: #0d1318;
+            --think: #7f8d9b;
+            --hungry: #f2a93b;
+            --eat: #4cc47c;
+            --bad: #ff7d73;
+            color-scheme: dark;
+        }
+    }
+
+    :root[data-theme="dark"] {
+        --bg: #0d1318;
+        --surface: #151d25;
+        --surface-2: #1b252f;
+        --ink: #e5ecf2;
+        --muted: #9aa9b8;
+        --line: #28333e;
+        --accent: #7ea6ff;
+        --on-accent: #0d1318;
+        --think: #7f8d9b;
+        --hungry: #f2a93b;
+        --eat: #4cc47c;
+        --bad: #ff7d73;
+        color-scheme: dark;
+    }
+
+    body {
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--font-body);
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    .wrap {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding-block: 22px 44px;
+        padding-left: max(16px, env(safe-area-inset-left, 0px));
+        padding-right: max(16px, env(safe-area-inset-right, 0px));
+    }
+
+    h1 {
+        font-size: 26px;
+        font-weight: 600;
+        margin: 0 0 6px;
+        letter-spacing: -0.01em;
+        text-wrap: balance;
+    }
+
+    h2 {
+        font-size: 13px;
+        font-weight: 600;
+        margin: 0 0 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+    }
+
+    .lede {
+        margin: 0 0 18px;
+        max-width: 68ch;
+        color: var(--muted);
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 16px;
+        align-items: start;
+    }
+
+    .side {
+        display: grid;
+        gap: 16px;
+        min-width: 0;
+    }
+
+    .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 16px;
+        min-width: 0;
+    }
+
+    .stage svg {
+        width: 100%;
+        height: auto;
+        max-width: 520px;
+        display: block;
+        margin: 0 auto;
+    }
+
+    .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 16px;
+        list-style: none;
+        padding: 0;
+        margin: 10px 0 0;
+        justify-content: center;
+        color: var(--muted);
+        font-size: 12px;
+    }
+
+    .legend i {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 6px;
+        border: 3px solid;
+        box-sizing: border-box;
+        vertical-align: -1px;
+    }
+
+    .btnrow {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .btn {
+        font: inherit;
+        padding: 7px 12px;
+        border: 1px solid var(--line);
+        background: var(--surface-2);
+        color: var(--ink);
+        border-radius: 6px;
+        cursor: pointer;
+    }
+
+    .btn:hover {
+        border-color: var(--accent);
+    }
+
+    .btn.primary {
+        background: var(--accent);
+        color: var(--on-accent);
+        border-color: var(--accent);
+        font-weight: 500;
+    }
+
+    .btn.small {
+        padding: 4px 10px;
+        font-family: var(--font-mono);
+        font-size: 12px;
+    }
+
+    .btn:focus-visible,
+    input:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+    }
+
+    .ctl {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 20px;
+        align-items: center;
+        margin-top: 12px;
+    }
+
+    .ctl label {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        color: var(--ink);
+    }
+
+    .ctl input[type=range] {
+        width: 120px;
+        accent-color: var(--accent);
+    }
+
+    .clock {
+        margin-left: auto;
+        font: 500 13px var(--font-mono);
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .sub {
+        margin-top: 14px;
+    }
+
+    .sub>span {
+        display: block;
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 6px;
+    }
+
+    .scroll {
+        overflow-x: auto;
+    }
+
+    table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 13px;
+    }
+
+    th,
+    td {
+        text-align: left;
+        padding: 6px 8px;
+        border-bottom: 1px solid var(--line);
+        white-space: nowrap;
+    }
+
+    thead th {
+        font-size: 11px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+    }
+
+    tbody th {
+        font-family: var(--font-mono);
+        font-weight: 600;
+    }
+
+    td.num,
+    td.mono {
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .pill {
+        display: inline-block;
+        padding: 0 8px;
+        border-radius: 99px;
+        font: 500 11px var(--font-mono);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        border: 1px solid currentColor;
+    }
+
+    .pill.thinking {
+        color: var(--think);
+    }
+
+    .pill.hungry {
+        color: var(--hungry);
+    }
+
+    .pill.eating {
+        color: var(--eat);
+    }
+
+    .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .chip {
+        font: 500 12px var(--font-mono);
+        padding: 2px 9px;
+        border-radius: 5px;
+        border: 1px solid var(--line);
+        background: var(--surface-2);
+    }
+
+    .chip.busy {
+        border-color: var(--eat);
+        color: var(--eat);
+    }
+
+    .chip.first {
+        border-color: var(--hungry);
+        color: var(--hungry);
+    }
+
+    .chip em {
+        font-style: normal;
+        font-size: 10px;
+        margin-left: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    .facts {
+        display: grid;
+        gap: 4px;
+        margin: 0;
+    }
+
+    .facts div {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 4px 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .facts dt {
+        color: var(--muted);
+    }
+
+    .facts dd {
+        margin: 0;
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+    }
+
+    .ok {
+        color: var(--eat);
+    }
+
+    .alert {
+        color: var(--bad);
+    }
+
+    #log {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        max-height: 330px;
+        overflow-y: auto;
+        font: 400 12px/1.55 var(--font-mono);
+    }
+
+    #log li {
+        display: grid;
+        grid-template-columns: 58px minmax(0, 1fr);
+        gap: 8px;
+        padding: 3px 0;
+        border-bottom: 1px solid var(--line);
+    }
+
+    #log .t {
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+    }
+
+    #log .ok .m {
+        color: var(--eat);
+    }
+
+    #log .warn .m {
+        color: var(--hungry);
+    }
+
+    #log .info .m {
+        color: var(--ink);
+    }
+
+    #log li.ok,
+    #log li.warn,
+    #log li.info {
+        color: inherit;
+    }
+
+    pre#algo {
+        margin: 0;
+        font: 400 12px/1.6 var(--font-mono);
+        overflow-x: auto;
+    }
+
+    .ln {
+        display: block;
+        padding: 0 8px;
+        border-left: 3px solid transparent;
+        white-space: pre;
+    }
+
+    .ln.flash {
+        animation: flash 1.6s ease-out;
+    }
+
+    .cm {
+        color: var(--muted);
+    }
+
+    @keyframes flash {
+        0% {
+            background: color-mix(in srgb, var(--accent) 24%, transparent);
+            border-left-color: var(--accent);
+        }
+
+        100% {
+            background: transparent;
+            border-left-color: transparent;
+        }
+    }
+
+    svg .table {
+        fill: var(--surface-2);
+        stroke: var(--line);
+        stroke-width: 2;
+    }
+
+    svg .mon-title {
+        font: 600 12px var(--font-mono);
+        fill: var(--muted);
+        letter-spacing: 0.14em;
+        text-anchor: middle;
+    }
+
+    svg .mon-sub {
+        font: 400 11px var(--font-body);
+        fill: var(--muted);
+        text-anchor: middle;
+    }
+
+    svg .mon-q {
+        font: 500 15px var(--font-mono);
+        fill: var(--ink);
+        text-anchor: middle;
+    }
+
+    svg .stick {
+        transition: transform 0.55s cubic-bezier(0.3, 0.7, 0.2, 1);
+    }
+
+    svg .stick line {
+        stroke-width: 7;
+        stroke-linecap: round;
+        transition: stroke 0.3s;
+    }
+
+    svg .stick.free line {
+        stroke: var(--muted);
+        opacity: 0.65;
+    }
+
+    svg .stick.busy line {
+        stroke: var(--eat);
+    }
+
+    svg .slabel {
+        font: 500 11px var(--font-mono);
+        fill: var(--muted);
+        text-anchor: middle;
+    }
+
+    svg .phil {
+        cursor: pointer;
+        outline: none;
+    }
+
+    svg .phil .body {
+        fill: var(--surface);
+        stroke-width: 4;
+        transition: stroke 0.3s, fill 0.3s;
+    }
+
+    svg .phil.thinking .body {
+        stroke: var(--think);
+    }
+
+    svg .phil.hungry .body {
+        stroke: var(--hungry);
+        fill: color-mix(in srgb, var(--hungry) 14%, var(--surface));
+        animation: pulse 1.1s ease-in-out infinite;
+    }
+
+    svg .phil.eating .body {
+        stroke: var(--eat);
+        fill: color-mix(in srgb, var(--eat) 18%, var(--surface));
+    }
+
+    svg .phil .ring {
+        fill: none;
+        stroke-width: 3;
+        stroke-linecap: round;
+    }
+
+    svg .phil.thinking .ring {
+        stroke: var(--think);
+    }
+
+    svg .phil.eating .ring {
+        stroke: var(--eat);
+    }
+
+    svg .phil.hungry .ring {
+        stroke: transparent;
+    }
+
+    svg .pname {
+        font: 600 16px var(--font-body);
+        fill: var(--ink);
+        text-anchor: middle;
+    }
+
+    svg .pstate {
+        font: 500 10px var(--font-mono);
+        fill: var(--muted);
+        text-anchor: middle;
+        letter-spacing: 0.06em;
+    }
+
+    svg .phil:focus-visible .body {
+        stroke-dasharray: 7 4;
+    }
+
+    @keyframes pulse {
+        50% {
+            stroke-opacity: 0.35;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        svg .phil.hungry .body {
+            animation: none;
+        }
+
+        svg .stick {
+            transition: none;
+        }
+
+        .ln.flash {
+            animation: none;
+            background: color-mix(in srgb, var(--accent) 18%, transparent);
+        }
+    }
+
+    @media (max-width: 880px) {
+        .grid {
+            grid-template-columns: minmax(0, 1fr);
+        }
+    }
+</style>
+
+<div class="wrap">
+    <header>
+        <h1>Dining Philosophers</h1>
+        <p class="lede">Four philosophers, four chopsticks, one monitor. The monitor checks and reserves both chopsticks
+            of a philosopher in a single step, keeps a FIFO queue of hungry philosophers, and wakes each one through a
+            private semaphore. Click a philosopher to make them hungry, or let the simulation run on its own.</p>
+    </header>
+
+    <div class="grid">
+        <section class="card stage" aria-label="Table">
+            <div id="svgbox"></div>
+            <ul class="legend">
+                <li><i style="color:var(--think)"></i>Thinking</li>
+                <li><i style="color:var(--hungry)"></i>Hungry, in queue</li>
+                <li><i style="color:var(--eat)"></i>Eating, holds both chopsticks</li>
+            </ul>
+        </section>
+
+        <div class="side">
+            <section class="card" aria-label="Controls">
+                <h2>Controls</h2>
+                <div class="btnrow">
+                    <button class="btn primary" id="play" type="button">Pause</button>
+                    <button class="btn" id="step" type="button">Step to next event</button>
+                    <button class="btn" id="reset" type="button">Reset</button>
+                    <span class="clock" id="clock">t = 0.0 s</span>
+                </div>
+                <div class="ctl">
+                    <label for="speed">Speed <input id="speed" type="range" min="0.5" max="4" step="0.5" value="1">
+                        <span id="speedOut" class="mono">1x</span></label>
+                    <label for="auto"><input id="auto" type="checkbox" checked> Philosophers get hungry on their
+                        own</label>
+                </div>
+                <div class="sub">
+                    <span>Make hungry now</span>
+                    <div class="btnrow" id="hungryBtns"></div>
+                </div>
+                <div class="sub">
+                    <span>Scenarios (stops automatic hunger)</span>
+                    <div class="btnrow">
+                        <button class="btn" id="presetPair" type="button">P0 and P2 together</button>
+                        <button class="btn" id="presetAll" type="button">Everyone hungry at once</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="card" aria-label="Monitor state">
+                <h2>Monitor state</h2>
+                <div class="scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Who</th>
+                                <th>State</th>
+                                <th>Needs</th>
+                                <th>Meals</th>
+                                <th>Waiting</th>
+                                <th>Longest</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rows"></tbody>
+                    </table>
+                </div>
+                <div class="sub"><span>Chopsticks</span>
+                    <div class="chips" id="sticks"></div>
+                </div>
+                <div class="sub"><span>Hungry queue, oldest first</span>
+                    <div class="chips" id="queue"></div>
+                </div>
+                <div class="sub">
+                    <span>Checks</span>
+                    <dl class="facts" id="facts"></dl>
+                </div>
+            </section>
+        </div>
+
+        <section class="card" aria-label="Event log">
+            <h2>Event log</h2>
+            <ol id="log"></ol>
+        </section>
+
+        <section class="card" aria-label="Algorithm">
+            <h2>Algorithm (the line that runs lights up)</h2>
+            <pre
+                id="algo"><span class="ln" id="ln-sig">requestChopsticks(p):</span><span class="ln" id="ln-lock1">  lock monitor</span><span class="ln" id="ln-enqueue">  state[p] = HUNGRY; hungryQueue.addLast(p)</span><span class="ln" id="ln-check">  grantEligible()          <span class="cm">// atomic check of both chopsticks</span></span><span class="ln" id="ln-unlock1">  unlock monitor</span><span class="ln" id="ln-wait">  wakeUpSignal[p].acquire()  <span class="cm">// sleeps here if not granted</span></span><span class="ln" id="ln-eat">EAT                        <span class="cm">// outside the monitor</span></span><span class="ln" id="ln-sig2">releaseChopsticks(p):</span><span class="ln" id="ln-release">  free both chopsticks; state[p] = THINKING</span><span class="ln" id="ln-recheck">  grantEligible()          <span class="cm">// wake whoever can now eat</span></span><span class="ln">&nbsp;</span><span class="ln" id="ln-sig3">grantEligible():           <span class="cm">// monitor lock held</span></span><span class="ln">  for each q in hungryQueue, oldest first:</span><span class="ln">    if both chopsticks of q are FREE</span><span class="ln">       and no older waiter needs either one:</span><span class="ln" id="ln-reserve">      reserve BOTH; state[q] = EATING</span><span class="ln">      wakeUpSignal[q].release()</span><span class="ln">    else:</span><span class="ln" id="ln-skip">      q keeps waiting; its chopsticks stay</span><span class="ln">      reserved against younger waiters</span></pre>
+        </section>
+    </div>
+</div>
+
+<script>
+    (function () {
+        'use strict';
+        var N = 4;
+        var EAT = [1800, 3200], THINK = [1500, 4500];
+        var PX = [230, 390, 230, 70], PY = [70, 230, 390, 230];
+        var SA = [-45, 45, 135, 225];
+        var $ = function (id) { return document.getElementById(id); };
+        function rand(a, b) { return a + Math.random() * (b - a); }
+        function L(p) { return p; }
+        function R(p) { return (p + N - 1) % N; }
+        function sec(ms) { return (ms / 1000).toFixed(1) + ' s'; }
+
+        var S;
+        var ui = { running: true, auto: true, speed: 1 };
+        var cache = {};
+
+        function hl(id) {
+            var el = $('ln-' + id);
+            if (!el) return;
+            el.classList.remove('flash');
+            void el.offsetWidth;
+            el.classList.add('flash');
+        }
+        function log(cls, text) {
+            S.log.unshift({ t: S.clock, cls: cls, text: text });
+            if (S.log.length > 120) S.log.pop();
+        }
+
+        function newState() {
+            S = { clock: 0, queue: [], stick: [null, null, null, null], phil: [], peak: 0, overtakes: 0, violations: 0, log: [] };
+            for (var i = 0; i < N; i++) {
+                S.phil.push({ state: 'thinking', timer: null, total: 1, meals: 0, hungryAt: 0, maxWait: 0 });
+            }
+        }
+        function startThinking(i) {
+            var p = S.phil[i];
+            p.state = 'thinking';
+            if (ui.auto) { p.total = rand(THINK[0], THINK[1]); p.timer = p.total; } else { p.timer = null; }
+        }
+        function resetSim() {
+            newState();
+            for (var i = 0; i < N; i++) startThinking(i);
+            log('info', 'Simulation reset. All philosophers are thinking.');
+        }
+
+        function checkInvariants() {
+            var eating = 0, i;
+            for (i = 0; i < N; i++) {
+                if (S.phil[i].state === 'eating') {
+                    eating++;
+                    if (S.phil[(i + 1) % N].state === 'eating') S.violations++;
+                }
+            }
+            if (eating > S.peak) S.peak = eating;
+        }
+
+        function grant(q, ahead) {
+            var l = L(q), r = R(q), ph = S.phil[q];
+            S.stick[l] = q;
+            S.stick[r] = q;
+            ph.state = 'eating';
+            ph.total = rand(EAT[0], EAT[1]);
+            ph.timer = ph.total;
+            var wait = S.clock - ph.hungryAt;
+            if (wait > ph.maxWait) ph.maxWait = wait;
+            S.queue.splice(S.queue.indexOf(q), 1);
+            hl('reserve'); hl('eat');
+            if (ahead.length > 0) {
+                S.overtakes++;
+                log('ok', 'P' + q + ' reserves C' + l + ' + C' + r + ' and eats while P' + ahead.join(', P') + ' still waits. No shared chopstick, so this is safe.');
+            } else {
+                log('ok', 'P' + q + ' reserves C' + l + ' + C' + r + ' together and starts EATING' + (wait > 50 ? ' (waited ' + sec(wait) + ')' : '') + '.');
+            }
+        }
+
+        function schedule(newcomer) {
+            var claimedBy = [null, null, null, null];
+            var list = S.queue.slice();
+            var ahead = [];
+            hl('check');
+            for (var k = 0; k < list.length; k++) {
+                var q = list[k], l = L(q), r = R(q);
+                var busyStick = S.stick[l] !== null ? l : (S.stick[r] !== null ? r : -1);
+                var blockedStick = claimedBy[l] !== null ? l : (claimedBy[r] !== null ? r : -1);
+                if (busyStick < 0 && blockedStick < 0) {
+                    grant(q, ahead.slice());
+                } else {
+                    if (claimedBy[l] === null) claimedBy[l] = q;
+                    if (claimedBy[r] === null) claimedBy[r] = q;
+                    ahead.push(q);
+                    hl('skip');
+                    if (q === newcomer) {
+                        if (busyStick >= 0) {
+                            log('warn', 'P' + q + ' cannot eat: C' + busyStick + ' is held by P' + S.stick[busyStick] + '. It holds nothing and goes to sleep.');
+                        } else {
+                            log('warn', 'P' + q + ' cannot eat yet: P' + claimedBy[blockedStick] + ' is older and needs C' + blockedStick + '. It goes to sleep.');
+                        }
+                        hl('wait');
+                    }
+                }
+            }
+        }
+
+        function becomeHungry(i) {
+            var p = S.phil[i];
+            if (p.state !== 'thinking') return;
+            p.state = 'hungry';
+            p.timer = null;
+            p.hungryAt = S.clock;
+            S.queue.push(i);
+            hl('enqueue');
+            log('info', 'P' + i + ' is HUNGRY and needs C' + L(i) + ' + C' + R(i) + '. Queue: ' + S.queue.map(function (x) { return 'P' + x; }).join(' > ') + '.');
+            schedule(i);
+            checkInvariants();
+        }
+
+        function finishEating(i) {
+            var p = S.phil[i];
+            S.stick[L(i)] = null;
+            S.stick[R(i)] = null;
+            p.meals++;
+            hl('release');
+            log('info', 'P' + i + ' puts down C' + L(i) + ' + C' + R(i) + ' and goes back to THINKING.');
+            startThinking(i);
+            hl('recheck');
+            schedule(-1);
+            checkInvariants();
+        }
+
+        function tick(dt) {
+            S.clock += dt;
+            var expired = [], i;
+            for (i = 0; i < N; i++) {
+                var p = S.phil[i];
+                if (p.timer !== null) {
+                    p.timer -= dt;
+                    if (p.timer <= 0) expired.push(i);
+                }
+            }
+            expired.sort(function (a, b) { return S.phil[a].timer - S.phil[b].timer; });
+            expired.forEach(function (idx) {
+                var ph = S.phil[idx];
+                if (ph.state === 'thinking') becomeHungry(idx);
+                else if (ph.state === 'eating') finishEating(idx);
+            });
+        }
+
+        function step() {
+            var min = null;
+            for (var i = 0; i < N; i++) {
+                var t = S.phil[i].timer;
+                if (t !== null && (min === null || t < min)) min = t;
+            }
+            if (min === null) {
+                log('warn', 'Nothing is scheduled. Click a philosopher to make them hungry.');
+                return;
+            }
+            tick(Math.max(min, 0) + 0.01);
+        }
+
+        /* ---------- drawing ---------- */
+        function buildSvg() {
+            var s = '<svg viewBox="0 0 460 460" role="img" aria-label="Round table with four philosophers, four chopsticks and a monitor in the middle">';
+            s += '<circle class="table" cx="230" cy="230" r="84"/>';
+            s += '<text class="mon-title" x="230" y="212">MONITOR</text>';
+            s += '<text class="mon-sub" x="230" y="231">hungry queue</text>';
+            s += '<text class="mon-q" id="qtext" x="230" y="254">empty</text>';
+            var k;
+            for (k = 0; k < N; k++) {
+                var a = SA[k] * Math.PI / 180;
+                var lx = 230 + 158 * Math.cos(a), ly = 230 + 158 * Math.sin(a) + 4;
+                s += '<g transform="translate(230 230)"><g class="stick free" id="stick' + k + '" style="transform:rotate(' + SA[k] + 'deg)"><line x1="96" y1="0" x2="142" y2="0"/></g></g>';
+                s += '<text class="slabel" x="' + lx.toFixed(1) + '" y="' + ly.toFixed(1) + '">C' + k + '</text>';
+            }
+            for (k = 0; k < N; k++) {
+                s += '<g class="phil thinking" id="phil' + k + '" tabindex="0" role="button" aria-label="Philosopher ' + k + ': make hungry">' +
+                    '<circle class="ring" cx="' + PX[k] + '" cy="' + PY[k] + '" r="43" pathLength="100" transform="rotate(-90 ' + PX[k] + ' ' + PY[k] + ')" style="stroke-dasharray:0 100"/>' +
+                    '<circle class="body" cx="' + PX[k] + '" cy="' + PY[k] + '" r="36"/>' +
+                    '<text class="pname" x="' + PX[k] + '" y="' + (PY[k] - 2) + '">P' + k + '</text>' +
+                    '<text class="pstate" id="pstate' + k + '" x="' + PX[k] + '" y="' + (PY[k] + 14) + '">THINKING</text></g>';
+            }
+            s += '</svg>';
+            $('svgbox').innerHTML = s;
+        }
+
+        function setHtml(id, html) {
+            if (cache[id] !== html) { cache[id] = html; $(id).innerHTML = html; }
+        }
+
+        function render() {
+            var i, k;
+            for (i = 0; i < N; i++) {
+                var p = S.phil[i], g = $('phil' + i);
+                g.setAttribute('class', 'phil ' + p.state);
+                $('pstate' + i).textContent = p.state === 'eating' ? 'EATING' : (p.state === 'hungry' ? 'HUNGRY' : 'THINKING');
+                var ring = g.querySelector('.ring');
+                var frac = (p.timer !== null && p.state !== 'hungry') ? Math.max(0, Math.min(1, p.timer / p.total)) : 0;
+                ring.style.strokeDasharray = (frac * 100).toFixed(1) + ' 100';
+            }
+            for (k = 0; k < N; k++) {
+                var owner = S.stick[k], el = $('stick' + k);
+                var ang = SA[k] + (owner === null ? 0 : (owner === k ? -28 : 28));
+                el.style.transform = 'rotate(' + ang + 'deg)';
+                el.setAttribute('class', 'stick ' + (owner === null ? 'free' : 'busy'));
+            }
+            $('qtext').textContent = S.queue.length ? S.queue.map(function (x) { return 'P' + x; }).join(' > ') : 'empty';
+            $('clock').textContent = 't = ' + sec(S.clock);
+
+            var rows = '';
+            var eatingNow = 0;
+            for (i = 0; i < N; i++) {
+                var ph = S.phil[i];
+                if (ph.state === 'eating') eatingNow++;
+                var waitingNow = ph.state === 'hungry' ? sec(S.clock - ph.hungryAt) : '-';
+                rows += '<tr><th scope="row">P' + i + '</th><td><span class="pill ' + ph.state + '">' + ph.state + '</span></td>' +
+                    '<td class="mono">C' + L(i) + ' + C' + R(i) + '</td><td class="num">' + ph.meals + '</td>' +
+                    '<td class="num">' + waitingNow + '</td><td class="num">' + sec(ph.maxWait) + '</td></tr>';
+            }
+            setHtml('rows', rows);
+
+            var sticks = '';
+            for (k = 0; k < N; k++) {
+                sticks += S.stick[k] === null ? '<span class="chip">C' + k + ' free</span>' : '<span class="chip busy">C' + k + ' held by P' + S.stick[k] + '</span>';
+            }
+            setHtml('sticks', sticks);
+
+            var q = '';
+            if (!S.queue.length) q = '<span class="chip">empty</span>';
+            for (i = 0; i < S.queue.length; i++) {
+                q += '<span class="chip' + (i === 0 ? ' first' : '') + '">P' + S.queue[i] + (i === 0 ? '<em>oldest</em>' : '') + '</span>';
+            }
+            setHtml('queue', q);
+
+            var deadlock = S.queue.length > 0 && eatingNow === 0;
+            var facts =
+                '<div><dt>Neighbours eating together</dt><dd class="' + (S.violations ? 'alert' : 'ok') + '">' + S.violations + (S.violations ? ' (broken)' : ' (never)') + '</dd></div>' +
+                '<div><dt>Most eating at once</dt><dd>' + S.peak + ' of 2 possible</dd></div>' +
+                '<div><dt>Overtakes (ate while an older waiter waited)</dt><dd>' + S.overtakes + '</dd></div>' +
+                '<div><dt>Deadlock</dt><dd class="' + (deadlock ? 'alert' : 'ok') + '">' + (deadlock ? 'detected' : 'none') + '</dd></div>';
+            setHtml('facts', facts);
+
+            var lg = '';
+            for (i = 0; i < S.log.length; i++) {
+                var e = S.log[i];
+                lg += '<li class="' + e.cls + '"><span class="t">' + (e.t / 1000).toFixed(1) + ' s</span><span class="m">' + e.text + '</span></li>';
+            }
+            setHtml('log', lg);
+        }
+
+        /* ---------- wiring ---------- */
+        function syncPlay() { $('play').textContent = ui.running ? 'Pause' : 'Play'; }
+
+        function applyAuto() {
+            for (var i = 0; i < N; i++) {
+                var p = S.phil[i];
+                if (p.state === 'thinking') {
+                    if (ui.auto && p.timer === null) { p.total = rand(THINK[0], THINK[1]); p.timer = p.total; }
+                    if (!ui.auto) p.timer = null;
+                }
+            }
+        }
+
+        function preset(name) {
+            ui.auto = false;
+            $('auto').checked = false;
+            resetSim();
+            ui.running = true;
+            syncPlay();
+            if (name === 'pair') {
+                becomeHungry(0);
+                becomeHungry(2);
+            } else {
+                for (var i = 0; i < N; i++) becomeHungry(i);
+            }
+            render();
+        }
+
+        buildSvg();
+        var hb = '';
+        for (var h = 0; h < N; h++) hb += '<button class="btn small" type="button" data-hungry="' + h + '">P' + h + '</button>';
+        $('hungryBtns').innerHTML = hb;
+
+        $('hungryBtns').addEventListener('click', function (e) {
+            var b = e.target.closest('[data-hungry]');
+            if (!b) return;
+            becomeHungry(parseInt(b.getAttribute('data-hungry'), 10));
+            render();
+        });
+        for (var pi = 0; pi < N; pi++) {
+            (function (idx) {
+                var g = $('phil' + idx);
+                g.addEventListener('click', function () { becomeHungry(idx); render(); });
+                g.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); becomeHungry(idx); render(); }
+                });
+            })(pi);
+        }
+        $('play').addEventListener('click', function () { ui.running = !ui.running; syncPlay(); });
+        $('step').addEventListener('click', function () { ui.running = false; syncPlay(); step(); render(); });
+        $('reset').addEventListener('click', function () { resetSim(); render(); });
+        $('speed').addEventListener('input', function () {
+            ui.speed = parseFloat(this.value);
+            $('speedOut').textContent = ui.speed + 'x';
+        });
+        $('auto').addEventListener('change', function () { ui.auto = this.checked; applyAuto(); render(); });
+        $('presetPair').addEventListener('click', function () { preset('pair'); });
+        $('presetAll').addEventListener('click', function () { preset('all'); });
+
+        resetSim();
+        render();
+        var last = performance.now();
+        setInterval(function () {
+            var now = performance.now();
+            var dt = now - last;
+            last = now;
+            if (!ui.running) return;
+            if (dt > 200) dt = 200;
+            tick(dt * ui.speed);
+            render();
+        }, 50);
+    })();
+</script>
