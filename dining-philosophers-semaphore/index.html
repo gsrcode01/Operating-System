@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dining Philosophers (Semaphore) — Interactive OS Simulator</title>
+  <meta name="description" content="Visual interactive simulation of the Dining Philosophers problem implemented using Semaphores, a FIFO waiting queue, and a centralized scheduler to prevent deadlock and starvation.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0e17;
+      --bg-card: rgba(18, 24, 38, 0.75);
+      --bg-card-hover: rgba(26, 34, 52, 0.85);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-glow: rgba(99, 102, 241, 0.3);
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --primary: #6366f1;
+      --primary-glow: rgba(99, 102, 241, 0.4);
+      --cyan: #06b6d4;
+      --cyan-glow: rgba(6, 182, 212, 0.35);
+      --amber: #f59e0b;
+      --amber-glow: rgba(245, 158, 11, 0.35);
+      --emerald: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.4);
+      --rose: #ef4444;
+      --rose-glow: rgba(239, 68, 68, 0.35);
+      --purple: #a855f7;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: radial-gradient(circle at 50% 0%, #151d30 0%, #080b12 70%);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    header {
+      padding: 1.25rem 2rem;
+      border-bottom: 1px solid var(--border-color);
+      backdrop-filter: blur(12px);
+      background: rgba(10, 14, 23, 0.8);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.875rem;
+    }
+
+    .badge-tag {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      font-weight: 700;
+      background: rgba(99, 102, 241, 0.15);
+      color: #818cf8;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.35rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #ffffff 40%, #a5b4fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .nav-btn {
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.45rem 0.85rem;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      transition: all 0.2s ease;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .nav-btn:hover {
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .nav-btn.active {
+      color: #a5b4fc;
+      border-color: var(--primary);
+      background: rgba(99, 102, 241, 0.12);
+    }
+
+    main {
+      flex: 1;
+      padding: 1.75rem 2rem;
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 1.75rem;
+      max-width: 1650px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    @media (max-width: 1100px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 1rem 1.35rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .panel-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .toolbar {
+      padding: 1rem 1.35rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+      background: rgba(15, 21, 35, 0.6);
+    }
+
+    .btn {
+      appearance: none;
+      border: none;
+      outline: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.55rem 1.1rem;
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+      color: #fff;
+      box-shadow: 0 4px 14px var(--primary-glow);
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px var(--primary-glow);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.25);
+    }
+
+    .speed-slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-left: auto;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    input[type=range] {
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    /* Simulation Canvas & Table */
+    .sim-arena {
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      min-height: 480px;
+    }
+
+    .table-container {
+      position: relative;
+      width: 440px;
+      height: 440px;
+    }
+
+    .table-disk {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 250px;
+      height: 250px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 40% 40%, #1e293b 0%, #0f172a 100%);
+      border: 3px solid rgba(255, 255, 255, 0.07);
+      box-shadow: inset 0 0 40px rgba(0,0,0,0.8), 0 10px 30px rgba(0,0,0,0.6);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 1.5rem;
+    }
+
+    .table-disk .table-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #94a3b8;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .table-disk .table-status {
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-top: 0.25rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Philosophers Positioning: 4 philosophers at 0, 90, 180, 270 deg */
+    .philosopher-node {
+      position: absolute;
+      width: 96px;
+      height: 96px;
+      margin-left: -48px;
+      margin-top: -48px;
+      border-radius: 50%;
+      background: #111827;
+      border: 2px solid rgba(255, 255, 255, 0.12);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      cursor: pointer;
+      user-select: none;
+      z-index: 10;
+    }
+
+    .philosopher-node:hover {
+      transform: scale(1.08);
+    }
+
+    .philosopher-node .p-avatar {
+      font-size: 1.5rem;
+      line-height: 1;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+    }
+
+    .philosopher-node .p-name {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 0.85rem;
+      margin-top: 0.2rem;
+    }
+
+    .philosopher-node .p-state-badge {
+      font-size: 0.62rem;
+      font-weight: 700;
+      padding: 0.1rem 0.45rem;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-top: 0.15rem;
+    }
+
+    /* States */
+    .philosopher-node.state-thinking {
+      border-color: var(--cyan);
+      box-shadow: 0 0 20px var(--cyan-glow);
+    }
+    .philosopher-node.state-thinking .p-state-badge {
+      background: rgba(6, 182, 212, 0.15);
+      color: var(--cyan);
+    }
+
+    .philosopher-node.state-hungry {
+      border-color: var(--amber);
+      box-shadow: 0 0 22px var(--amber-glow);
+      animation: pulse-hungry 1.2s infinite alternate ease-in-out;
+    }
+    .philosopher-node.state-hungry .p-state-badge {
+      background: rgba(245, 158, 11, 0.2);
+      color: var(--amber);
+    }
+
+    .philosopher-node.state-eating {
+      border-color: var(--emerald);
+      box-shadow: 0 0 28px var(--emerald-glow);
+      transform: scale(1.06);
+    }
+    .philosopher-node.state-eating .p-state-badge {
+      background: rgba(16, 185, 129, 0.2);
+      color: var(--emerald);
+    }
+
+    @keyframes pulse-hungry {
+      0% { box-shadow: 0 0 10px var(--amber-glow); }
+      100% { box-shadow: 0 0 28px var(--amber-glow); }
+    }
+
+    /* Chopsticks */
+    .chopstick {
+      position: absolute;
+      width: 6px;
+      height: 48px;
+      margin-left: -3px;
+      margin-top: -24px;
+      background: linear-gradient(180deg, #e2e8f0 0%, #94a3b8 100%);
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+      transition: all 0.35s ease;
+      z-index: 8;
+    }
+
+    .chopstick.busy {
+      background: linear-gradient(180deg, #f87171 0%, #ef4444 100%);
+      box-shadow: 0 0 12px var(--rose-glow);
+      transform: scale(1.15);
+    }
+
+    .chopstick-label {
+      position: absolute;
+      font-size: 0.65rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: #94a3b8;
+      font-weight: 600;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    /* Synchronization State Widgets */
+    .state-bar {
+      padding: 1.25rem 1.5rem;
+      border-top: 1px solid var(--border-color);
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      background: rgba(13, 18, 30, 0.5);
+    }
+
+    .widget-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 0.85rem 1rem;
+    }
+
+    .widget-box .title {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+
+    .widget-box .val-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .dot-green { background: var(--emerald); box-shadow: 0 0 8px var(--emerald); }
+    .dot-red { background: var(--rose); box-shadow: 0 0 8px var(--rose); }
+
+    /* Queue display */
+    .fifo-queue-list {
+      display: flex;
+      gap: 0.4rem;
+      margin-top: 0.35rem;
+      min-height: 28px;
+      align-items: center;
+    }
+
+    .queue-chip {
+      background: rgba(245, 158, 11, 0.2);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      color: #fde68a;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.15rem 0.55rem;
+      border-radius: 6px;
+      animation: popIn 0.2s ease-out;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.7); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    /* Right Column: Code & Logs */
+    .right-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 1.75rem;
+    }
+
+    .console-box {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 280px;
+      max-height: 380px;
+    }
+
+    .console-logs {
+      flex: 1;
+      padding: 1rem 1.25rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      background: #080c14;
+    }
+
+    .log-entry {
+      line-height: 1.45;
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .log-time {
+      color: #475569;
+      user-select: none;
+    }
+
+    .log-p0 { color: #60a5fa; }
+    .log-p1 { color: #34d399; }
+    .log-p2 { color: #f472b6; }
+    .log-p3 { color: #fbbf24; }
+    .log-scheduler { color: #c084fc; font-weight: 600; }
+
+    /* Code View */
+    .code-box {
+      display: flex;
+      flex-direction: column;
+    }
+
+    pre code {
+      display: block;
+      padding: 1.25rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      background: #080c14;
+      color: #cbd5e1;
+      overflow-x: auto;
+      line-height: 1.55;
+    }
+
+    .hl-keyword { color: #f472b6; }
+    .hl-type { color: #38bdf8; }
+    .hl-func { color: #a78bfa; }
+    .hl-comment { color: #64748b; font-style: italic; }
+
+    .explanation-card {
+      padding: 1.25rem;
+      background: rgba(99, 102, 241, 0.06);
+      border-top: 1px solid var(--border-color);
+      font-size: 0.82rem;
+      line-height: 1.5;
+      color: #cbd5e1;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="badge-tag">OS Synchronization</div>
+      <h1>Dining Philosophers (Semaphore)</h1>
+    </div>
+    <nav class="nav-links">
+      <a href="index.html" class="nav-btn active">DP Semaphore</a>
+      <a href="../dining-philosophers-monitor/index.html" class="nav-btn">DP Monitor</a>
+      <a href="../reader-writer-semaphore/index.html" class="nav-btn">RW Semaphore</a>
+      <a href="../reader-writer-monitor/index.html" class="nav-btn">RW Monitor</a>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Left Column: Visual Table & Synchronization Widgets -->
+    <section class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>🍽️</span> Interactive Dining Arena (N = 4)
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted);">
+          Click any philosopher to toggle hunger
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <button id="btnPlayPause" class="btn btn-primary" onclick="toggleAuto()">
+          <span id="playIcon">⏸️</span> <span id="playText">Pause Auto</span>
+        </button>
+        <button id="btnStep" class="btn btn-secondary" onclick="stepSimulation()">
+          <span>⏭️</span> Step Next
+        </button>
+        <button id="btnReset" class="btn btn-danger" onclick="resetSim()">
+          <span>🔄</span> Reset Table
+        </button>
+
+        <div class="speed-slider-wrap">
+          <label for="speedRange">Speed:</label>
+          <input type="range" id="speedRange" min="0.5" max="3" step="0.5" value="1" onchange="updateSpeed(this.value)">
+          <span id="speedDisplay" style="font-family: 'JetBrains Mono'; font-weight:600;">1x</span>
+        </div>
+      </div>
+
+      <div class="sim-arena">
+        <div class="table-container" id="tableContainer">
+          <!-- Circular Table -->
+          <div class="table-disk">
+            <div class="table-title">Shared Dining Table</div>
+            <div class="table-status" id="tableActiveEaters">Eaters: None</div>
+            <div style="margin-top: 0.5rem; font-size: 1.3rem;">🍜</div>
+          </div>
+
+          <!-- 4 Philosophers: dynamically placed -->
+          <div id="p0" class="philosopher-node state-thinking" onclick="togglePhilosopherHunger(0)">
+            <div class="p-avatar">🧘‍♂️</div>
+            <div class="p-name">P0</div>
+            <div class="p-state-badge" id="p0State">Thinking</div>
+          </div>
+
+          <div id="p1" class="philosopher-node state-thinking" onclick="togglePhilosopherHunger(1)">
+            <div class="p-avatar">🧙‍♂️</div>
+            <div class="p-name">P1</div>
+            <div class="p-state-badge" id="p1State">Thinking</div>
+          </div>
+
+          <div id="p2" class="philosopher-node state-thinking" onclick="togglePhilosopherHunger(2)">
+            <div class="p-avatar">🧝‍♂️</div>
+            <div class="p-name">P2</div>
+            <div class="p-state-badge" id="p2State">Thinking</div>
+          </div>
+
+          <div id="p3" class="philosopher-node state-thinking" onclick="togglePhilosopherHunger(3)">
+            <div class="p-avatar">🧑‍🚀</div>
+            <div class="p-name">P3</div>
+            <div class="p-state-badge" id="p3State">Thinking</div>
+          </div>
+
+          <!-- 4 Chopsticks -->
+          <div id="c0" class="chopstick"><span class="chopstick-label" style="top:-16px; left:-5px;">C0</span></div>
+          <div id="c1" class="chopstick"><span class="chopstick-label" style="top:-16px; left:-5px;">C1</span></div>
+          <div id="c2" class="chopstick"><span class="chopstick-label" style="top:-16px; left:-5px;">C2</span></div>
+          <div id="c3" class="chopstick"><span class="chopstick-label" style="top:-16px; left:-5px;">C3</span></div>
+        </div>
+      </div>
+
+      <!-- Sync Monitor Primitives -->
+      <div class="state-bar">
+        <div class="widget-box">
+          <div class="title">Scheduler Mutex (Semaphore)</div>
+          <div class="val-row">
+            <span class="status-dot dot-green" id="mutexDot"></span>
+            <span id="mutexValue">1 (UNLOCKED)</span>
+          </div>
+        </div>
+
+        <div class="widget-box">
+          <div class="title">FIFO Waiting Queue (waiting)</div>
+          <div class="fifo-queue-list" id="queueChips">
+            <span style="font-size:0.75rem; color:#64748b;">(Queue Empty)</span>
+          </div>
+        </div>
+
+        <div class="widget-box">
+          <div class="title">Wakeup Semaphores (wakeup[0..3])</div>
+          <div class="val-row" style="font-size:0.82rem; gap:0.6rem;">
+            <span>P0: <b id="w0">0</b></span>
+            <span>P1: <b id="w1">0</b></span>
+            <span>P2: <b id="w2">0</b></span>
+            <span>P3: <b id="w3">0</b></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Column: Code & Event Logs -->
+    <div class="right-stack">
+      <!-- Live Event Log -->
+      <section class="panel console-box">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>📜</span> Execution Log
+          </div>
+          <button class="btn btn-secondary" style="padding: 0.25rem 0.65rem; font-size: 0.75rem;" onclick="clearLogs()">
+            Clear
+          </button>
+        </div>
+        <div class="console-logs" id="logContainer"></div>
+      </section>
+
+      <!-- Java Code Walkthrough -->
+      <section class="panel code-box">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>☕</span> DiningPhilosophersSemaphore.java
+          </div>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">Atomic schedule() + Wakeup Semaphores</span>
+        </div>
+        <pre><code><span class="hl-comment">// Centralized FIFO Scheduler guarantees deadlock-freedom</span>
+<span class="hl-keyword">static void</span> <span class="hl-func">schedule</span>() {
+    Iterator&lt;Integer&gt; it = waiting.iterator();
+    <span class="hl-keyword">while</span> (it.hasNext()) {
+        <span class="hl-keyword">int</span> p = it.next();
+        <span class="hl-keyword">if</span> (canEat(p)) {
+            chopstickBusy[left(p)] = <span class="hl-keyword">true</span>;
+            chopstickBusy[right(p)] = <span class="hl-keyword">true</span>;
+            granted[p] = <span class="hl-keyword">true</span>;
+            it.remove();
+            wakeup[p].release(); <span class="hl-comment">// Wake up blocked thread</span>
+        }
+    }
+}</code></pre>
+        <div class="explanation-card">
+          💡 <strong>How Deadlock & Starvation Are Avoided:</strong>
+          Neither philosopher picks up only one chopstick. A philosopher either receives <strong>both</strong> chopsticks atomically from the scheduler or sleeps on their dedicated <code>wakeup[p]</code> semaphore. The FIFO waiting list ensures fairness and completely prevents starvation.
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    // State Variables corresponding to DiningPhilosophersSemaphore.java
+    const N = 4;
+    const STATE_THINKING = 'THINKING';
+    const STATE_HUNGRY = 'HUNGRY';
+    const STATE_EATING = 'EATING';
+
+    const pStates = [STATE_THINKING, STATE_THINKING, STATE_THINKING, STATE_THINKING];
+    const chopstickBusy = [false, false, false, false];
+    const granted = [false, false, false, false];
+    const waitingQueue = [];
+    const wakeup = [0, 0, 0, 0];
+    let mutexLocked = false;
+
+    let autoRunning = true;
+    let speed = 1.0;
+    let simTimer = null;
+
+    // Helper geometry for circular positioning
+    function positionElements() {
+      const centerX = 220;
+      const centerY = 220;
+      const philosopherRadius = 165;
+      const chopstickRadius = 100;
+
+      // Philosophers at 0 (top), 90 (right), 180 (bottom), 270 (left)
+      // Java code indices:
+      // P0 at top (270 deg / -90 deg), P1 at right (0 deg), P2 at bottom (90 deg), P3 at left (180 deg)
+      const pAngles = [270, 0, 90, 180];
+      for (let i = 0; i < N; i++) {
+        const rad = pAngles[i] * Math.PI / 180;
+        const x = centerX + philosopherRadius * Math.cos(rad);
+        const y = centerY + philosopherRadius * Math.sin(rad);
+        const node = document.getElementById('p' + i);
+        node.style.left = x + 'px';
+        node.style.top = y + 'px';
+      }
+
+      // Chopsticks between philosophers
+      // left(p) = p, right(p) = (p + N - 1) % N
+      // C0 is between P0 and P3 (angle ~ 225)
+      // C1 is between P0 and P1 (angle ~ 315)
+      // C2 is between P1 and P2 (angle ~ 45)
+      // C3 is between P2 and P3 (angle ~ 135)
+      const cAngles = [315, 45, 135, 225];
+      for (let i = 0; i < N; i++) {
+        const rad = cAngles[i] * Math.PI / 180;
+        const x = centerX + chopstickRadius * Math.cos(rad);
+        const y = centerY + chopstickRadius * Math.sin(rad);
+        const cNode = document.getElementById('c' + i);
+        cNode.style.left = x + 'px';
+        cNode.style.top = y + 'px';
+        cNode.style.transform = `rotate(${cAngles[i] + 90}deg)`;
+      }
+    }
+
+    function left(p) { return p; }
+    function right(p) { return (p + N - 1) % N; }
+
+    function canEat(p) {
+      return !chopstickBusy[left(p)] && !chopstickBusy[right(p)];
+    }
+
+    function log(message, type = 'normal') {
+      const box = document.getElementById('logContainer');
+      const time = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.className = 'log-entry';
+
+      let cls = '';
+      if (message.includes('P0')) cls = 'log-p0';
+      else if (message.includes('P1')) cls = 'log-p1';
+      else if (message.includes('P2')) cls = 'log-p2';
+      else if (message.includes('P3')) cls = 'log-p3';
+      else if (message.includes('Scheduler')) cls = 'log-scheduler';
+
+      div.innerHTML = `<span class="log-time">[${time}]</span> <span class="${cls}">${message}</span>`;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function updateUI() {
+      // Update Philosophers
+      const eaters = [];
+      for (let i = 0; i < N; i++) {
+        const node = document.getElementById('p' + i);
+        const badge = document.getElementById('p' + i + 'State');
+        node.className = 'philosopher-node state-' + pStates[i].toLowerCase();
+        badge.innerText = pStates[i];
+
+        if (pStates[i] === STATE_EATING) {
+          eaters.push('P' + i);
+        }
+      }
+
+      document.getElementById('tableActiveEaters').innerText =
+        eaters.length > 0 ? 'Eaters: ' + eaters.join(', ') : 'Eaters: None';
+
+      // Update Chopsticks
+      for (let i = 0; i < N; i++) {
+        const cNode = document.getElementById('c' + i);
+        if (chopstickBusy[i]) {
+          cNode.classList.add('busy');
+        } else {
+          cNode.classList.remove('busy');
+        }
+      }
+
+      // Update Mutex
+      const mDot = document.getElementById('mutexDot');
+      const mVal = document.getElementById('mutexValue');
+      if (mutexLocked) {
+        mDot.className = 'status-dot dot-red';
+        mVal.innerText = '0 (LOCKED by Scheduler)';
+      } else {
+        mDot.className = 'status-dot dot-green';
+        mVal.innerText = '1 (UNLOCKED)';
+      }
+
+      // Update Queue Chips
+      const qBox = document.getElementById('queueChips');
+      if (waitingQueue.length === 0) {
+        qBox.innerHTML = '<span style="font-size:0.75rem; color:#64748b;">(Queue Empty)</span>';
+      } else {
+        qBox.innerHTML = waitingQueue.map((p, idx) =>
+          `<div class="queue-chip">#${idx + 1} P${p}</div>`
+        ).join('');
+      }
+
+      // Update Wakeup Semaphores
+      for (let i = 0; i < N; i++) {
+        document.getElementById('w' + i).innerText = wakeup[i];
+      }
+    }
+
+    // Java Schedule() equivalent
+    function schedule() {
+      log('Scheduler is reviewing waiting queue...', 'scheduler');
+      for (let i = 0; i < waitingQueue.length; i++) {
+        const p = waitingQueue[i];
+        if (canEat(p)) {
+          chopstickBusy[left(p)] = true;
+          chopstickBusy[right(p)] = true;
+          granted[p] = true;
+          wakeup[p] = 1;
+          waitingQueue.splice(i, 1);
+          i--;
+
+          log(`Scheduler grants both chopsticks C${left(p)} and C${right(p)} to P${p}`, 'scheduler');
+          pStates[p] = STATE_EATING;
+
+          // Schedule philosopher to finish eating after duration
+          const eatTime = (2000 + Math.random() * 1500) / speed;
+          setTimeout(() => {
+            if (pStates[p] === STATE_EATING) {
+              putChopsticks(p);
+            }
+          }, eatTime);
+        }
+      }
+    }
+
+    function takeChopsticks(p) {
+      mutexLocked = true;
+      pStates[p] = STATE_HUNGRY;
+      waitingQueue.push(p);
+      log(`P${p} is HUNGRY and joins waiting queue`, 'hungry');
+
+      schedule();
+
+      mutexLocked = false;
+      updateUI();
+    }
+
+    function putChopsticks(p) {
+      mutexLocked = true;
+      chopstickBusy[left(p)] = false;
+      chopstickBusy[right(p)] = false;
+      granted[p] = false;
+      wakeup[p] = 0;
+      pStates[p] = STATE_THINKING;
+
+      log(`P${p} releases chopsticks and returns to THINKING`, 'thinking');
+
+      // Schedule any eligible waiting candidates
+      schedule();
+
+      mutexLocked = false;
+      updateUI();
+
+      // Philosopher thinks for a while before getting hungry again in auto mode
+      if (autoRunning) {
+        const thinkTime = (2500 + Math.random() * 3000) / speed;
+        setTimeout(() => {
+          if (pStates[p] === STATE_THINKING && autoRunning) {
+            takeChopsticks(p);
+          }
+        }, thinkTime);
+      }
+    }
+
+    function togglePhilosopherHunger(p) {
+      if (pStates[p] === STATE_THINKING) {
+        takeChopsticks(p);
+      } else if (pStates[p] === STATE_EATING) {
+        putChopsticks(p);
+      }
+    }
+
+    function toggleAuto() {
+      autoRunning = !autoRunning;
+      document.getElementById('playIcon').innerText = autoRunning ? '⏸️' : '▶️';
+      document.getElementById('playText').innerText = autoRunning ? 'Pause Auto' : 'Resume Auto';
+
+      if (autoRunning) {
+        log('Auto simulation resumed');
+        triggerAutoCycle();
+      } else {
+        log('Auto simulation paused');
+      }
+    }
+
+    function updateSpeed(val) {
+      speed = parseFloat(val);
+      document.getElementById('speedDisplay').innerText = val + 'x';
+    }
+
+    function stepSimulation() {
+      // Pick a thinking philosopher to become hungry or let an eater finish
+      const thinkers = [];
+      for (let i = 0; i < N; i++) {
+        if (pStates[i] === STATE_THINKING) thinkers.push(i);
+      }
+
+      if (thinkers.length > 0) {
+        const pick = thinkers[Math.floor(Math.random() * thinkers.length)];
+        takeChopsticks(pick);
+      } else {
+        // Force an eater to release
+        for (let i = 0; i < N; i++) {
+          if (pStates[i] === STATE_EATING) {
+            putChopsticks(i);
+            break;
+          }
+        }
+      }
+    }
+
+    function triggerAutoCycle() {
+      if (!autoRunning) return;
+      // If all are thinking, trigger one
+      const thinkingCount = pStates.filter(s => s === STATE_THINKING).length;
+      if (thinkingCount >= 3) {
+        const p = Math.floor(Math.random() * N);
+        if (pStates[p] === STATE_THINKING) {
+          takeChopsticks(p);
+        }
+      }
+    }
+
+    function resetSim() {
+      for (let i = 0; i < N; i++) {
+        pStates[i] = STATE_THINKING;
+        chopstickBusy[i] = false;
+        granted[i] = false;
+        wakeup[i] = 0;
+      }
+      waitingQueue.length = 0;
+      mutexLocked = false;
+      log('Table reset to initial thinking state.');
+      updateUI();
+    }
+
+    function clearLogs() {
+      document.getElementById('logContainer').innerHTML = '';
+    }
+
+    // Initialize
+    window.addEventListener('DOMContentLoaded', () => {
+      positionElements();
+      updateUI();
+      log('Dining Philosophers (Semaphore) simulator initialized.');
+      log('P0, P1, P2, P3 are THINKING.');
+
+      // Kick off initial simulation events
+      setTimeout(() => takeChopsticks(0), 600);
+      setTimeout(() => takeChopsticks(2), 1100);
+      setTimeout(() => takeChopsticks(1), 1600);
+
+      setInterval(() => {
+        if (autoRunning) triggerAutoCycle();
+      }, 4000);
+    });
+  </script>
+</body>
+</html>

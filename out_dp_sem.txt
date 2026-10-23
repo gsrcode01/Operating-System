@@ -1,0 +1,40 @@
+P0 is THINKING
+P1 is THINKING
+P2 is THINKING
+P3 is THINKING
+P0 is HUNGRY
+Scheduler grants both chopsticks to P0
+P1 is HUNGRY
+P0 is EATING
+P2 is HUNGRY
+Scheduler grants both chopsticks to P2
+P2 is EATING
+P3 is HUNGRY
+P0 releases both chopsticks
+P0 is THINKING
+P2 releases both chopsticks
+Scheduler grants both chopsticks to P1
+Scheduler grants both chopsticks to P3
+P2 is THINKING
+P1 is EATING
+P3 is EATING
+P0 is HUNGRY
+P2 is HUNGRY
+P1 releases both chopsticks
+P1 is THINKING
+P3 releases both chopsticks
+Scheduler grants both chopsticks to P0
+Scheduler grants both chopsticks to P2
+P3 is THINKING
+P0 is EATING
+P2 is EATING
+P1 is HUNGRY
+P3 is HUNGRY
+P0 releases both chopsticks
+P0 is THINKING
+P2 releases both chopsticks
+Scheduler grants both chopsticks to P1
+Scheduler grants both chopsticks to P3
+P1 is EATING
+P2 is THINKING
+P3 is EATING

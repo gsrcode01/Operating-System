@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reader–Writer Problem (Semaphore) — Interactive OS Simulator</title>
+  <meta name="description" content="Visual interactive simulation of the Reader-Writer problem using fair semaphores (serviceQueue, resource, readCountMutex) preventing writer starvation.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0e17;
+      --bg-card: rgba(18, 24, 38, 0.75);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --primary: #3b82f6;
+      --primary-glow: rgba(59, 130, 246, 0.4);
+      --emerald: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.4);
+      --amber: #f59e0b;
+      --amber-glow: rgba(245, 158, 11, 0.35);
+      --rose: #ef4444;
+      --rose-glow: rgba(239, 68, 68, 0.35);
+      --purple: #8b5cf6;
+      --cyan: #06b6d4;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: radial-gradient(circle at 50% 0%, #101c38 0%, #070a12 70%);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    header {
+      padding: 1.25rem 2rem;
+      border-bottom: 1px solid var(--border-color);
+      backdrop-filter: blur(12px);
+      background: rgba(10, 14, 23, 0.8);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand { display: flex; align-items: center; gap: 0.875rem; }
+    .badge-tag {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      font-weight: 700;
+      background: rgba(59, 130, 246, 0.15);
+      color: #93c5fd;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.35rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #ffffff 40%, #93c5fd 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-links { display: flex; gap: 0.75rem; }
+    .nav-btn {
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.45rem 0.85rem;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      transition: all 0.2s ease;
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .nav-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.06); }
+    .nav-btn.active {
+      color: #93c5fd;
+      border-color: var(--primary);
+      background: rgba(59, 130, 246, 0.15);
+    }
+
+    main {
+      flex: 1;
+      padding: 1.75rem 2rem;
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 1.75rem;
+      max-width: 1650px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 1rem 1.35rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .panel-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .toolbar {
+      padding: 1rem 1.35rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+      background: rgba(15, 21, 35, 0.6);
+    }
+
+    .btn {
+      border: none;
+      outline: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.55rem 1.1rem;
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      transition: all 0.2s ease;
+    }
+
+    .btn-reader {
+      background: linear-gradient(135deg, #06b6d4 0%, #0284c7 100%);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(6, 182, 212, 0.35);
+    }
+    .btn-reader:hover { transform: translateY(-1px); }
+
+    .btn-writer {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+    }
+    .btn-writer:hover { transform: translateY(-1px); }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+    }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.1); }
+
+    .speed-slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-left: auto;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    input[type=range] { accent-color: var(--primary); cursor: pointer; }
+
+    /* Visual Arena */
+    .arena-rw {
+      padding: 1.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      min-height: 480px;
+      justify-content: space-between;
+    }
+
+    /* Central Shared Resource Display */
+    .shared-ledger {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border: 2px solid rgba(59, 130, 246, 0.3);
+      border-radius: 16px;
+      padding: 1.25rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ledger-info { display: flex; flex-direction: column; gap: 0.25rem; }
+    .ledger-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #93c5fd;
+      font-weight: 700;
+    }
+    .ledger-status { font-size: 0.75rem; color: #94a3b8; }
+
+    .shared-val-box {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .shared-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.1);
+      padding: 0.3rem 1.25rem;
+      border-radius: 10px;
+      border: 1px solid rgba(56, 189, 248, 0.25);
+    }
+
+    /* Service Queue Section (Fair Turnstile) */
+    .section-lane {
+      border: 1px dashed var(--border-color);
+      border-radius: 14px;
+      padding: 1rem 1.25rem;
+      background: rgba(15, 23, 42, 0.4);
+    }
+
+    .lane-header {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .threads-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      min-height: 48px;
+      align-items: center;
+    }
+
+    .thread-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.4rem 0.8rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.82rem;
+      font-family: 'JetBrains Mono', monospace;
+      animation: popIn 0.25s ease-out;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.6); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .thread-reader {
+      background: rgba(6, 182, 212, 0.18);
+      border: 1px solid rgba(6, 182, 212, 0.4);
+      color: #67e8f9;
+    }
+
+    .thread-writer {
+      background: rgba(245, 158, 11, 0.18);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      color: #fde68a;
+    }
+
+    /* Reading & Writing Areas side by side */
+    .active-zones {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+
+    @media (max-width: 700px) {
+      .active-zones { grid-template-columns: 1fr; }
+    }
+
+    .active-zone {
+      border-radius: 14px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      min-height: 140px;
+    }
+
+    .reading-room {
+      background: rgba(6, 182, 212, 0.06);
+      border: 1px solid rgba(6, 182, 212, 0.25);
+    }
+    .reading-room.active {
+      box-shadow: 0 0 24px rgba(6, 182, 212, 0.2);
+      border-color: rgba(6, 182, 212, 0.5);
+    }
+
+    .writing-bay {
+      background: rgba(245, 158, 11, 0.06);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+    }
+    .writing-bay.active {
+      box-shadow: 0 0 24px rgba(245, 158, 11, 0.2);
+      border-color: rgba(245, 158, 11, 0.5);
+    }
+
+    /* Semaphores Bar */
+    .state-bar {
+      padding: 1.25rem 1.5rem;
+      border-top: 1px solid var(--border-color);
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      background: rgba(13, 18, 30, 0.5);
+    }
+
+    .widget-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 0.85rem 1rem;
+    }
+
+    .widget-box .title {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+
+    .widget-box .val-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot-green { background: var(--emerald); box-shadow: 0 0 8px var(--emerald); }
+    .dot-red { background: var(--rose); box-shadow: 0 0 8px var(--rose); }
+
+    /* Right Stack */
+    .right-stack { display: flex; flex-direction: column; gap: 1.75rem; }
+    .console-box { flex: 1; display: flex; flex-direction: column; min-height: 280px; max-height: 380px; }
+    .console-logs {
+      flex: 1;
+      padding: 1rem 1.25rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      background: #080c14;
+    }
+
+    .log-entry { line-height: 1.45; display: flex; gap: 0.5rem; }
+    .log-time { color: #475569; user-select: none; }
+    .log-reader { color: #38bdf8; }
+    .log-writer { color: #fbbf24; font-weight: 600; }
+    .log-sys { color: #c084fc; }
+
+    .code-box { display: flex; flex-direction: column; }
+    pre code {
+      display: block;
+      padding: 1.25rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      background: #080c14;
+      color: #cbd5e1;
+      overflow-x: auto;
+      line-height: 1.55;
+    }
+
+    .hl-keyword { color: #f472b6; }
+    .hl-func { color: #a78bfa; }
+    .hl-comment { color: #64748b; font-style: italic; }
+
+    .explanation-card {
+      padding: 1.25rem;
+      background: rgba(59, 130, 246, 0.08);
+      border-top: 1px solid var(--border-color);
+      font-size: 0.82rem;
+      line-height: 1.5;
+      color: #cbd5e1;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="badge-tag">OS Synchronization</div>
+      <h1>Reader–Writer Problem (Semaphore)</h1>
+    </div>
+    <nav class="nav-links">
+      <a href="../dining-philosophers-semaphore/index.html" class="nav-btn">DP Semaphore</a>
+      <a href="../dining-philosophers-monitor/index.html" class="nav-btn">DP Monitor</a>
+      <a href="index.html" class="nav-btn active">RW Semaphore</a>
+      <a href="../reader-writer-monitor/index.html" class="nav-btn">RW Monitor</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>📖</span> Fair Service Queue Simulator
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted);">
+          Prevents writer starvation with serviceQueue
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <button class="btn btn-reader" onclick="spawnReader()">
+          <span>📖</span> + Spawn Reader
+        </button>
+        <button class="btn btn-writer" onclick="spawnWriter()">
+          <span>✍️</span> + Spawn Writer
+        </button>
+        <button id="btnPlayPause" class="btn btn-secondary" onclick="toggleAuto()">
+          <span id="playIcon">⏸️</span> <span id="playText">Pause Auto</span>
+        </button>
+        <button class="btn btn-secondary" onclick="resetSim()">
+          <span>🔄</span> Reset
+        </button>
+
+        <div class="speed-slider-wrap">
+          <label for="speedRange">Speed:</label>
+          <input type="range" id="speedRange" min="0.5" max="3" step="0.5" value="1" onchange="updateSpeed(this.value)">
+          <span id="speedDisplay" style="font-family: 'JetBrains Mono'; font-weight:600;">1x</span>
+        </div>
+      </div>
+
+      <div class="arena-rw">
+        <!-- Central Shared Resource -->
+        <div class="shared-ledger">
+          <div class="ledger-info">
+            <span class="ledger-title">Shared Memory Resource</span>
+            <span class="ledger-status" id="resourceOwnerStatus">Resource State: UNLOCKED</span>
+          </div>
+          <div class="shared-val-box">
+            <span style="font-size: 0.85rem; color: var(--text-muted);">sharedData =</span>
+            <div class="shared-val" id="sharedDataDisplay">0</div>
+          </div>
+        </div>
+
+        <!-- Service Queue (Fair FIFO Turnstile) -->
+        <div class="section-lane">
+          <div class="lane-header">
+            <span>🎫 Fair Service Queue (serviceQueue Turnstile)</span>
+            <span id="queueCountLabel">0 Waiting</span>
+          </div>
+          <div class="threads-row" id="serviceQueueContainer">
+            <span style="font-size:0.75rem; color:#64748b;">(No threads in queue)</span>
+          </div>
+        </div>
+
+        <!-- Active Areas -->
+        <div class="active-zones">
+          <div class="active-zone reading-room" id="readingRoom">
+            <div class="lane-header">
+              <span style="color: #67e8f9;">👥 Concurrent Readers Room (<span id="activeReadersCount">0</span>)</span>
+              <span style="font-size:0.7rem; color:#06b6d4;">Multiple Readers Allowed</span>
+            </div>
+            <div class="threads-row" id="activeReadersContainer">
+              <span style="font-size:0.75rem; color:#64748b;">(No active readers)</span>
+            </div>
+          </div>
+
+          <div class="active-zone writing-bay" id="writingBay">
+            <div class="lane-header">
+              <span style="color: #fde68a;">🔐 Exclusive Writer Sanctuary (<span id="activeWritersCount">0</span>/1)</span>
+              <span style="font-size:0.7rem; color:#f59e0b;">Strict Mutual Exclusion</span>
+            </div>
+            <div class="threads-row" id="activeWritersContainer">
+              <span style="font-size:0.75rem; color:#64748b;">(No active writer)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Semaphores Bar -->
+      <div class="state-bar">
+        <div class="widget-box">
+          <div class="title">serviceQueue Semaphore</div>
+          <div class="val-row">
+            <span class="status-dot dot-green" id="sqDot"></span>
+            <span id="sqVal">1 (Open)</span>
+          </div>
+        </div>
+
+        <div class="widget-box">
+          <div class="title">resource Semaphore</div>
+          <div class="val-row">
+            <span class="status-dot dot-green" id="resDot"></span>
+            <span id="resVal">1 (Free)</span>
+          </div>
+        </div>
+
+        <div class="widget-box">
+          <div class="title">readCount & readCountMutex</div>
+          <div class="val-row">
+            <span class="status-dot dot-green" id="rcmDot"></span>
+            <span>readCount: <b id="rcVal" style="color:#38bdf8;">0</b></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Stack -->
+    <div class="right-stack">
+      <section class="panel console-box">
+        <div class="panel-header">
+          <div class="panel-title"><span>📜</span> Concurrency Logs</div>
+          <button class="btn btn-secondary" style="padding: 0.25rem 0.65rem; font-size: 0.75rem;" onclick="clearLogs()">Clear</button>
+        </div>
+        <div class="console-logs" id="logContainer"></div>
+      </section>
+
+      <section class="panel code-box">
+        <div class="panel-header">
+          <div class="panel-title"><span>☕</span> ReaderWriterSemaphore.java</div>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">Fair FIFO Turnstile</span>
+        </div>
+        <pre><code><span class="hl-comment">// Reader enters through fair turnstile</span>
+serviceQueue.acquire();
+readCountMutex.acquire();
+readCount++;
+<span class="hl-keyword">if</span> (readCount == 1) resource.acquire();
+serviceQueue.release();
+readCountMutex.release();
+
+<span class="hl-comment">// Writer requests turnstile & resource</span>
+serviceQueue.acquire();
+resource.acquire();
+serviceQueue.release();
+sharedData++;
+resource.release();</code></pre>
+        <div class="explanation-card">
+          💡 <strong>Starvation Prevention:</strong>
+          Without <code>serviceQueue</code>, an endless stream of readers would continually increment <code>readCount</code>, starving writers indefinitely. By routing both readers and writers through <code>serviceQueue</code>, incoming readers cannot jump ahead of an earlier queued writer!
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    let sharedData = 0;
+    let readCount = 0;
+    let serviceQueuePermits = 1;
+    let resourcePermits = 1;
+    let readCountMutexPermits = 1;
+
+    let readerSeq = 1;
+    let writerSeq = 1;
+
+    const waitingQueue = [];
+    const activeReaders = [];
+    let activeWriter = null;
+
+    let autoRunning = true;
+    let speed = 1.0;
+
+    function log(message, type = 'sys') {
+      const box = document.getElementById('logContainer');
+      const time = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.className = 'log-entry';
+
+      let cls = 'log-sys';
+      if (type === 'reader') cls = 'log-reader';
+      else if (type === 'writer') cls = 'log-writer';
+
+      div.innerHTML = `<span class="log-time">[${time}]</span> <span class="${cls}">${message}</span>`;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function updateUI() {
+      // Shared Data
+      document.getElementById('sharedDataDisplay').innerText = sharedData;
+
+      // Status label
+      const ownerLabel = document.getElementById('resourceOwnerStatus');
+      if (activeWriter) {
+        ownerLabel.innerText = `Resource State: LOCKED by Writer W${activeWriter.id} (Exclusive)`;
+        ownerLabel.style.color = '#f59e0b';
+      } else if (activeReaders.length > 0) {
+        ownerLabel.innerText = `Resource State: READ SHARED by ${activeReaders.length} reader(s)`;
+        ownerLabel.style.color = '#06b6d4';
+      } else {
+        ownerLabel.innerText = `Resource State: UNLOCKED (Free)`;
+        ownerLabel.style.color = '#94a3b8';
+      }
+
+      // Waiting Queue
+      const qBox = document.getElementById('serviceQueueContainer');
+      document.getElementById('queueCountLabel').innerText = `${waitingQueue.length} Waiting`;
+      if (waitingQueue.length === 0) {
+        qBox.innerHTML = '<span style="font-size:0.75rem; color:#64748b;">(No threads in queue)</span>';
+      } else {
+        qBox.innerHTML = waitingQueue.map(t =>
+          `<div class="thread-badge ${t.type === 'reader' ? 'thread-reader' : 'thread-writer'}">
+            ${t.type === 'reader' ? '📖 R' : '✍️ W'}${t.id}
+          </div>`
+        ).join('');
+      }
+
+      // Active Readers
+      const arBox = document.getElementById('activeReadersContainer');
+      document.getElementById('activeReadersCount').innerText = activeReaders.length;
+      const readingRoom = document.getElementById('readingRoom');
+      if (activeReaders.length === 0) {
+        arBox.innerHTML = '<span style="font-size:0.75rem; color:#64748b;">(No active readers)</span>';
+        readingRoom.classList.remove('active');
+      } else {
+        readingRoom.classList.add('active');
+        arBox.innerHTML = activeReaders.map(r =>
+          `<div class="thread-badge thread-reader">📖 R${r.id} (reading: ${sharedData})</div>`
+        ).join('');
+      }
+
+      // Active Writer
+      const awBox = document.getElementById('activeWritersContainer');
+      const writingBay = document.getElementById('writingBay');
+      document.getElementById('activeWritersCount').innerText = activeWriter ? '1' : '0';
+      if (!activeWriter) {
+        awBox.innerHTML = '<span style="font-size:0.75rem; color:#64748b;">(No active writer)</span>';
+        writingBay.classList.remove('active');
+      } else {
+        writingBay.classList.add('active');
+        awBox.innerHTML = `<div class="thread-badge thread-writer">✍️ W${activeWriter.id} (writing...)</div>`;
+      }
+
+      // Semaphores
+      const sqDot = document.getElementById('sqDot');
+      const sqVal = document.getElementById('sqVal');
+      if (serviceQueuePermits === 1) {
+        sqDot.className = 'status-dot dot-green';
+        sqVal.innerText = '1 (Open)';
+      } else {
+        sqDot.className = 'status-dot dot-red';
+        sqVal.innerText = '0 (Held in Turnstile)';
+      }
+
+      const resDot = document.getElementById('resDot');
+      const resVal = document.getElementById('resVal');
+      if (resourcePermits === 1) {
+        resDot.className = 'status-dot dot-green';
+        resVal.innerText = '1 (Free)';
+      } else {
+        resDot.className = 'status-dot dot-red';
+        resVal.innerText = '0 (Held by ' + (activeWriter ? 'Writer W' + activeWriter.id : 'Reader Group') + ')';
+      }
+
+      document.getElementById('rcVal').innerText = readCount;
+    }
+
+    function spawnReader() {
+      const id = readerSeq++;
+      const item = { type: 'reader', id: id };
+      waitingQueue.push(item);
+      log(`Reader R${id} arrived and queued at serviceQueue`, 'reader');
+      updateUI();
+      processQueue();
+    }
+
+    function spawnWriter() {
+      const id = writerSeq++;
+      const item = { type: 'writer', id: id };
+      waitingQueue.push(item);
+      log(`Writer W${id} arrived and queued at serviceQueue`, 'writer');
+      updateUI();
+      processQueue();
+    }
+
+    let processingTurnstile = false;
+
+    function processQueue() {
+      if (processingTurnstile || waitingQueue.length === 0) return;
+
+      const next = waitingQueue[0];
+
+      if (next.type === 'writer') {
+        // Writer needs resource lock
+        if (resourcePermits === 1) {
+          processingTurnstile = true;
+          serviceQueuePermits = 0;
+          updateUI();
+
+          setTimeout(() => {
+            const writer = waitingQueue.shift();
+            resourcePermits = 0;
+            serviceQueuePermits = 1;
+            activeWriter = writer;
+            processingTurnstile = false;
+
+            log(`Writer W${writer.id} acquired resource lock -> writing...`, 'writer');
+            updateUI();
+
+            const writeDuration = 1800 / speed;
+            setTimeout(() => {
+              sharedData++;
+              log(`Writer W${writer.id} wrote new value: ${sharedData} and releases resource lock`, 'writer');
+              activeWriter = null;
+              resourcePermits = 1;
+              updateUI();
+              processQueue();
+            }, writeDuration);
+          }, 300 / speed);
+        }
+      } else if (next.type === 'reader') {
+        // If resource is not held by writer, reader can enter turnstile
+        if (!activeWriter) {
+          processingTurnstile = true;
+          serviceQueuePermits = 0;
+          updateUI();
+
+          setTimeout(() => {
+            const reader = waitingQueue.shift();
+            readCount++;
+            if (readCount === 1) {
+              resourcePermits = 0; // First reader blocks writers
+            }
+            serviceQueuePermits = 1;
+            activeReaders.push(reader);
+            processingTurnstile = false;
+
+            log(`Reader R${reader.id} enters reading room (reads: ${sharedData})`, 'reader');
+            updateUI();
+
+            // Next reader can immediately enter if next in line!
+            processQueue();
+
+            const readDuration = (1600 + Math.random() * 1000) / speed;
+            setTimeout(() => {
+              // Reader finishes
+              const idx = activeReaders.findIndex(r => r.id === reader.id);
+              if (idx !== -1) activeReaders.splice(idx, 1);
+              readCount--;
+              log(`Reader R${reader.id} finished reading`, 'reader');
+
+              if (readCount === 0) {
+                resourcePermits = 1;
+                log(`Last reader left. resource semaphore unlocked for writers`, 'sys');
+              }
+              updateUI();
+              processQueue();
+            }, readDuration);
+          }, 300 / speed);
+        }
+      }
+    }
+
+    function toggleAuto() {
+      autoRunning = !autoRunning;
+      document.getElementById('playIcon').innerText = autoRunning ? '⏸️' : '▶️';
+      document.getElementById('playText').innerText = autoRunning ? 'Pause Auto' : 'Resume Auto';
+    }
+
+    function updateSpeed(val) {
+      speed = parseFloat(val);
+      document.getElementById('speedDisplay').innerText = val + 'x';
+    }
+
+    function resetSim() {
+      sharedData = 0;
+      readCount = 0;
+      serviceQueuePermits = 1;
+      resourcePermits = 1;
+      readerSeq = 1;
+      writerSeq = 1;
+      waitingQueue.length = 0;
+      activeReaders.length = 0;
+      activeWriter = null;
+      processingTurnstile = false;
+      log('Simulator reset to initial state.');
+      updateUI();
+    }
+
+    function clearLogs() {
+      document.getElementById('logContainer').innerHTML = '';
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      updateUI();
+      log('Reader-Writer (Semaphore) simulator initialized.');
+
+      // Kick off demo threads
+      setTimeout(() => spawnReader(), 500);
+      setTimeout(() => spawnReader(), 1000);
+      setTimeout(() => spawnWriter(), 1500);
+      setTimeout(() => spawnReader(), 2200);
+
+      setInterval(() => {
+        if (!autoRunning) return;
+        if (waitingQueue.length < 5) {
+          if (Math.random() < 0.65) spawnReader();
+          else spawnWriter();
+        }
+      }, 3500);
+    });
+  </script>
+</body>
+</html>

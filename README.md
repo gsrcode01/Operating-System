@@ -1,50 +1,74 @@
-# Operating System
+# Operating System Concurrency Implementations & Visualizations
 
-This repository contains practical implementations and interactive visualizations of operating-system concepts, with a focus on multithreading, synchronization, and concurrent execution.
+Practical implementations and interactive web visualizations of classic operating-system synchronization and concurrency problems.
 
-## Implementations
+---
 
-### 1. Dining Philosophers Problem
-**Files:** `DiningPhilosophers.java`, `diningphilosopher.html`
+## 📂 Repository Structure
 
-The Java implementation models four philosophers sharing four chopsticks. A monitor coordinates access to the chopsticks, while semaphores put waiting philosophers to sleep and wake them when they can proceed. A FIFO queue and fairness checks help prevent starvation, and both chopsticks are reserved together so two philosophers cannot claim the same chopstick simultaneously.
+```text
+os/
+├── dining-philosophers-semaphore/
+│   ├── DiningPhilosophersSemaphore.java    # Semaphore + FIFO queue scheduler
+│   └── index.html                         # Interactive 4-philosopher round-table simulation
+│
+├── dining-philosophers-monitor/
+│   ├── DiningPhilosophersMonitor.java      # Java Monitor (synchronized, wait, notifyAll)
+│   └── index.html                         # Interactive Table Monitor visualization
+│
+├── reader-writer-semaphore/
+│   ├── ReaderWriterSemaphore.java          # Fair serviceQueue + resource + mutex semaphores
+│   └── index.html                         # Interactive Fair Turnstile Reader-Writer simulator
+│
+├── reader-writer-monitor/
+│   ├── ReaderWriterMonitor.java            # Java Monitor with Writer-Preference condition sync
+│   └── index.html                         # Interactive Writer-Preference Monitor simulator
+│
+├── MultiplicationThreads.java              # Matrix multiplication with ExecutorService thread pools
+├── ProducerConsumerThreadPool.java         # Producer-Consumer with thread pools & bounded buffer
+├── index.html                              # Matrix Thread Pool Visualizer & navigation hub
+├── MCQ.docx                                # Multiple-choice questions and revision notes
+├── ch1.pdf, ch2_modified.pdf, ch3_modified.pdf
+└── README.md
+```
 
-The HTML simulator presents the philosophers' states—thinking, hungry, and eating—along with the shared chopsticks, waiting queue, and synchronization activity. Users can interact with the simulation and observe how the coordination rules work.
+---
 
-**Concepts:** threads, monitors, semaphores, mutual exclusion, resource allocation, deadlock prevention, and starvation prevention.
+## 🚀 Projects & Visualizations
 
-### 2. Reader–Writer Problem
-**Files:** `ReaderWriter.java`, `readerwriter.html`
+### 1. Dining Philosophers (Semaphore)
+- **Folder:** [`dining-philosophers-semaphore/`](dining-philosophers-semaphore/)
+- **Source Code:** [DiningPhilosophersSemaphore.java](dining-philosophers-semaphore/DiningPhilosophersSemaphore.java)
+- **Visual Simulation:** [dining-philosophers-semaphore/index.html](dining-philosophers-semaphore/index.html)
+- **Key Concepts:**
+  - $N=4$ philosophers sharing 4 chopsticks in a circle.
+  - A centralized `schedule()` method protected by a `mutex` semaphore ensures deadlock freedom.
+  - Philosophers block on private `wakeup[p]` semaphores until both chopsticks are allocated simultaneously.
+  - FIFO waiting queue ensures fairness and prevents philosopher starvation.
 
-The Java program demonstrates coordination between readers and writers that access shared data. Multiple readers can read concurrently, but a writer must have exclusive access so that no reader or other writer accesses the shared resource while writing.
+### 2. Dining Philosophers (Monitor)
+- **Folder:** [`dining-philosophers-monitor/`](dining-philosophers-monitor/)
+- **Source Code:** [DiningPhilosophersMonitor.java](dining-philosophers-monitor/DiningPhilosophersMonitor.java)
+- **Visual Simulation:** [dining-philosophers-monitor/index.html](dining-philosophers-monitor/index.html)
+- **Key Concepts:**
+  - Encapsulated synchronization inside a `Table` monitor using Java's intrinsic locks (`synchronized`).
+  - Condition synchronization with `wait()` and `notifyAll()`.
+  - Hungry philosophers join a `waiting` list and wait in the monitor's condition wait set until the scheduler grants both chopsticks.
 
-The HTML simulator visualizes readers and writers waiting for and accessing a shared ledger. It lets users compare semaphore-based synchronization with Java's `ReentrantReadWriteLock`, explore fair and reader-preference behavior, and observe how a continuous stream of readers can cause writer starvation when fairness is disabled.
+### 3. Reader–Writer Problem (Semaphore)
+- **Folder:** [`reader-writer-semaphore/`](reader-writer-semaphore/)
+- **Source Code:** [ReaderWriterSemaphore.java](reader-writer-semaphore/ReaderWriterSemaphore.java)
+- **Visual Simulation:** [reader-writer-semaphore/index.html](reader-writer-semaphore/index.html)
+- **Key Concepts:**
+  - **Fair Turnstile:** `serviceQueue` semaphore ensures incoming requests are served in order.
+  - **Starvation Freedom:** Writers do not starve behind continuous readers.
+  - `readCountMutex` protects the reader counter, and the first reader acquires the `resource` semaphore while the last reader releases it.
 
-**Concepts:** read–write synchronization, semaphores, locks, mutual exclusion, fairness, and starvation.
-
-### 3. Matrix Multiplication with Thread Pools
-**File:** `MultiplicationThreads.java`
-
-This program performs matrix multiplication using concurrent tasks managed by Java executor services. The work is split across thread pools so multiple matrix-result calculations can execute concurrently. It demonstrates how independent computations can be distributed among worker threads and how the program waits for tasks to complete.
-
-**Concepts:** multithreading, executor services, fixed thread pools, parallel computation, and task coordination.
-
-### 4. Producer–Consumer Problem with a Thread Pool
-**File:** `ProducerConsumerThreadPool.java`
-
-This program models producers adding items to a shared bounded buffer and consumers removing them. Producers and consumers run as tasks in a thread pool. The bounded blocking queue coordinates access when the buffer is full or empty, demonstrating how concurrent tasks can safely exchange data.
-
-**Concepts:** producer–consumer synchronization, bounded buffers, blocking queues, thread pools, and concurrency.
-
-### 5. Matrix Thread-Pool Visualization
-**File:** `index.html`
-
-This browser-based visualization illustrates the matrix multiplication and thread-pool workflow. It provides a visual way to follow worker activity and the progress of parallel calculations, making the relationship between matrix operations and concurrent execution easier to understand.
-
-**Concepts:** visualizing parallel execution, worker threads, thread pools, and matrix computation.
-
-## Technologies
-
-- **Java** — concurrent program implementations.
-- **Java Concurrency API** — threads, executor services, semaphores, locks, and blocking queues.
-- **HTML, CSS, and JavaScript** — interactive visualizations for synchronization and thread-pool concepts.
+### 4. Reader–Writer Problem (Monitor)
+- **Folder:** [`reader-writer-monitor/`](reader-writer-monitor/)
+- **Source Code:** [ReaderWriterMonitor.java](reader-writer-monitor/ReaderWriterMonitor.java)
+- **Visual Simulation:** [reader-writer-monitor/index.html](reader-writer-monitor/index.html)
+- **Key Concepts:**
+  - **Writer Preference:** Readers wait if `writerActive || waitingWriters > 0`.
+  - Immediate prioritization of pending writers eliminates writer starvation.
+  - Coordinated via `wait()` and `notifyAll()` inside Java `synchronized` methods.

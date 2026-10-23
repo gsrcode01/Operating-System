@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reader–Writer Problem (Monitor) — Interactive OS Simulator</title>
+  <meta name="description" content="Visual interactive simulation of the Reader-Writer problem using a Java Monitor with Writer-Preference condition synchronization (wait, notifyAll).">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0e17;
+      --bg-card: rgba(18, 24, 38, 0.75);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --primary: #8b5cf6;
+      --primary-glow: rgba(139, 92, 246, 0.4);
+      --emerald: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.4);
+      --amber: #f59e0b;
+      --amber-glow: rgba(245, 158, 11, 0.35);
+      --rose: #ef4444;
+      --rose-glow: rgba(239, 68, 68, 0.35);
+      --cyan: #06b6d4;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: radial-gradient(circle at 50% 0%, #191233 0%, #080b12 70%);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    header {
+      padding: 1.25rem 2rem;
+      border-bottom: 1px solid var(--border-color);
+      backdrop-filter: blur(12px);
+      background: rgba(10, 14, 23, 0.8);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand { display: flex; align-items: center; gap: 0.875rem; }
+    .badge-tag {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      font-weight: 700;
+      background: rgba(139, 92, 246, 0.15);
+      color: #c4b5fd;
+      border: 1px solid rgba(139, 92, 246, 0.3);
+    }
+
+    h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.35rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #ffffff 40%, #c4b5fd 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-links { display: flex; gap: 0.75rem; }
+    .nav-btn {
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.45rem 0.85rem;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      transition: all 0.2s ease;
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .nav-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.06); }
+    .nav-btn.active {
+      color: #c4b5fd;
+      border-color: var(--primary);
+      background: rgba(139, 92, 246, 0.15);
+    }
+
+    main {
+      flex: 1;
+      padding: 1.75rem 2rem;
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 1.75rem;
+      max-width: 1650px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 1rem 1.35rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .panel-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .toolbar {
+      padding: 1rem 1.35rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+      background: rgba(15, 21, 35, 0.6);
+    }
+
+    .btn {
+      border: none;
+      outline: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.55rem 1.1rem;
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      transition: all 0.2s ease;
+    }
+
+    .btn-reader {
+      background: linear-gradient(135deg, #06b6d4 0%, #0284c7 100%);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(6, 182, 212, 0.35);
+    }
+    .btn-reader:hover { transform: translateY(-1px); }
+
+    .btn-writer {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+    }
+    .btn-writer:hover { transform: translateY(-1px); }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+    }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.1); }
+
+    .speed-slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-left: auto;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    input[type=range] { accent-color: var(--primary); cursor: pointer; }
+
+    /* Visual Arena */
+    .arena-rw {
+      padding: 1.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      min-height: 480px;
+      justify-content: space-between;
+    }
+
+    .shared-ledger {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border: 2px solid rgba(139, 92, 246, 0.3);
+      border-radius: 16px;
+      padding: 1.25rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    }
+
+    .ledger-info { display: flex; flex-direction: column; gap: 0.25rem; }
+    .ledger-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #c4b5fd;
+      font-weight: 700;
+    }
+    .ledger-status { font-size: 0.75rem; color: #94a3b8; }
+
+    .shared-val-box {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .shared-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #a78bfa;
+      background: rgba(167, 139, 250, 0.1);
+      padding: 0.3rem 1.25rem;
+      border-radius: 10px;
+      border: 1px solid rgba(167, 139, 250, 0.25);
+    }
+
+    /* Condition Wait Sets Grid */
+    .wait-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+
+    @media (max-width: 700px) { .wait-grid { grid-template-columns: 1fr; } }
+
+    .wait-pool {
+      border: 1px dashed var(--border-color);
+      border-radius: 14px;
+      padding: 1rem 1.25rem;
+      background: rgba(15, 23, 42, 0.4);
+      min-height: 80px;
+    }
+
+    .lane-header {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      font-weight: 700;
+      margin-bottom: 0.6rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .threads-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      min-height: 42px;
+      align-items: center;
+    }
+
+    .thread-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.4rem 0.8rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.82rem;
+      font-family: 'JetBrains Mono', monospace;
+      animation: popIn 0.25s ease-out;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.6); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .thread-reader {
+      background: rgba(6, 182, 212, 0.18);
+      border: 1px solid rgba(6, 182, 212, 0.4);
+      color: #67e8f9;
+    }
+
+    .thread-writer {
+      background: rgba(245, 158, 11, 0.18);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      color: #fde68a;
+    }
+
+    /* Active Zones */
+    .active-zones {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+
+    @media (max-width: 700px) { .active-zones { grid-template-columns: 1fr; } }
+
+    .active-zone {
+      border-radius: 14px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      min-height: 140px;
+    }
+
+    .reading-room {
+      background: rgba(6, 182, 212, 0.06);
+      border: 1px solid rgba(6, 182, 212, 0.25);
+    }
+    .reading-room.active {
+      box-shadow: 0 0 24px rgba(6, 182, 212, 0.2);
+      border-color: rgba(6, 182, 212, 0.5);
+    }
+
+    .writing-bay {
+      background: rgba(245, 158, 11, 0.06);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+    }
+    .writing-bay.active {
+      box-shadow: 0 0 24px rgba(245, 158, 11, 0.2);
+      border-color: rgba(245, 158, 11, 0.5);
+    }
+
+    /* Status Bar */
+    .state-bar {
+      padding: 1.25rem 1.5rem;
+      border-top: 1px solid var(--border-color);
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      background: rgba(13, 18, 30, 0.5);
+    }
+
+    .widget-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 0.85rem 1rem;
+    }
+
+    .widget-box .title {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+
+    .widget-box .val-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot-purple { background: var(--primary); box-shadow: 0 0 8px var(--primary); }
+    .dot-green { background: var(--emerald); box-shadow: 0 0 8px var(--emerald); }
+
+    /* Right Stack */
+    .right-stack { display: flex; flex-direction: column; gap: 1.75rem; }
+    .console-box { flex: 1; display: flex; flex-direction: column; min-height: 280px; max-height: 380px; }
+    .console-logs {
+      flex: 1;
+      padding: 1rem 1.25rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      background: #080c14;
+    }
+
+    .log-entry { line-height: 1.45; display: flex; gap: 0.5rem; }
+    .log-time { color: #475569; user-select: none; }
+    .log-reader { color: #38bdf8; }
+    .log-writer { color: #fbbf24; font-weight: 600; }
+    .log-monitor { color: #c084fc; }
+
+    .code-box { display: flex; flex-direction: column; }
+    pre code {
+      display: block;
+      padding: 1.25rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      background: #080c14;
+      color: #cbd5e1;
+      overflow-x: auto;
+      line-height: 1.55;
+    }
+
+    .hl-keyword { color: #f472b6; }
+    .hl-func { color: #a78bfa; }
+    .hl-comment { color: #64748b; font-style: italic; }
+
+    .explanation-card {
+      padding: 1.25rem;
+      background: rgba(139, 92, 246, 0.08);
+      border-top: 1px solid var(--border-color);
+      font-size: 0.82rem;
+      line-height: 1.5;
+      color: #cbd5e1;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="badge-tag">OS Synchronization</div>
+      <h1>Reader–Writer Problem (Monitor)</h1>
+    </div>
+    <nav class="nav-links">
+      <a href="../dining-philosophers-semaphore/index.html" class="nav-btn">DP Semaphore</a>
+      <a href="../dining-philosophers-monitor/index.html" class="nav-btn">DP Monitor</a>
+      <a href="../reader-writer-semaphore/index.html" class="nav-btn">RW Semaphore</a>
+      <a href="index.html" class="nav-btn active">RW Monitor</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>🏛️</span> Monitor Synchronization (Writer Preference)
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted);">
+          Readers wait if waitingWriters &gt; 0
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <button class="btn btn-reader" onclick="spawnReader()">
+          <span>📖</span> + Spawn Reader
+        </button>
+        <button class="btn btn-writer" onclick="spawnWriter()">
+          <span>✍️</span> + Spawn Writer
+        </button>
+        <button id="btnPlayPause" class="btn btn-secondary" onclick="toggleAuto()">
+          <span id="playIcon">⏸️</span> <span id="playText">Pause Auto</span>
+        </button>
+        <button class="btn btn-secondary" onclick="resetSim()">
+          <span>🔄</span> Reset
+        </button>
+
+        <div class="speed-slider-wrap">
+          <label for="speedRange">Speed:</label>
+          <input type="range" id="speedRange" min="0.5" max="3" step="0.5" value="1" onchange="updateSpeed(this.value)">
+          <span id="speedDisplay" style="font-family: 'JetBrains Mono'; font-weight:600;">1x</span>
+        </div>
+      </div>
+
+      <div class="arena-rw">
+        <!-- Shared Ledger -->
+        <div class="shared-ledger">
+          <div class="ledger-info">
+            <span class="ledger-title">Monitor Data Store</span>
+            <span class="ledger-status" id="monitorStatusLabel">Status: Idle (No active read/write)</span>
+          </div>
+          <div class="shared-val-box">
+            <span style="font-size: 0.85rem; color: var(--text-muted);">sharedData =</span>
+            <div class="shared-val" id="sharedDataDisplay">0</div>
+          </div>
+        </div>
+
+        <!-- Wait Sets (Java wait() conditions) -->
+        <div class="wait-grid">
+          <div class="wait-pool">
+            <div class="lane-header">
+              <span style="color:#67e8f9;">⏸️ Readers Waiting in wait()</span>
+              <span id="waitingReadersCount">0 Waiting</span>
+            </div>
+            <div class="threads-row" id="waitingReadersContainer">
+              <span style="font-size:0.75rem; color:#64748b;">(No readers waiting)</span>
+            </div>
+          </div>
+
+          <div class="wait-pool">
+            <div class="lane-header">
+              <span style="color:#fde68a;">⏸️ Writers Waiting in wait()</span>
+              <span id="waitingWritersCount">0 Waiting</span>
+            </div>
+            <div class="threads-row" id="waitingWritersContainer">
+              <span style="font-size:0.75rem; color:#64748b;">(No writers waiting)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Zones -->
+        <div class="active-zones">
+          <div class="active-zone reading-room" id="readingRoom">
+            <div class="lane-header">
+              <span style="color: #67e8f9;">👥 Active Readers (<span id="activeReadersCount">0</span>)</span>
+              <span style="font-size:0.7rem; color:#06b6d4;">Non-exclusive</span>
+            </div>
+            <div class="threads-row" id="activeReadersContainer">
+              <span style="font-size:0.75rem; color:#64748b;">(No active readers)</span>
+            </div>
+          </div>
+
+          <div class="active-zone writing-bay" id="writingBay">
+            <div class="lane-header">
+              <span style="color: #fde68a;">🔐 Active Writer (<span id="activeWriterCount">0</span>/1)</span>
+              <span style="font-size:0.7rem; color:#f59e0b;">Exclusive</span>
+            </div>
+            <div class="threads-row" id="activeWriterContainer">
+              <span style="font-size:0.75rem; color:#64748b;">(No active writer)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- State Bar -->
+      <div class="state-bar">
+        <div class="widget-box">
+          <div class="title">Active Readers (readers)</div>
+          <div class="val-row">
+            <span class="status-dot dot-green" id="readersDot"></span>
+            <span>Count: <b id="statReaders" style="color:#38bdf8;">0</b></span>
+          </div>
+        </div>
+
+        <div class="widget-box">
+          <div class="title">Waiting Writers (waitingWriters)</div>
+          <div class="val-row">
+            <span class="status-dot dot-purple" id="wwDot"></span>
+            <span>Count: <b id="statWaitingWriters" style="color:#f59e0b;">0</b></span>
+          </div>
+        </div>
+
+        <div class="widget-box">
+          <div class="title">Writer Active (writerActive)</div>
+          <div class="val-row">
+            <span class="status-dot dot-green" id="waDot"></span>
+            <span id="statWriterActive">false</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Stack -->
+    <div class="right-stack">
+      <section class="panel console-box">
+        <div class="panel-header">
+          <div class="panel-title"><span>📜</span> Monitor Logs</div>
+          <button class="btn btn-secondary" style="padding: 0.25rem 0.65rem; font-size: 0.75rem;" onclick="clearLogs()">Clear</button>
+        </div>
+        <div class="console-logs" id="logContainer"></div>
+      </section>
+
+      <section class="panel code-box">
+        <div class="panel-header">
+          <div class="panel-title"><span>☕</span> ReaderWriterMonitor.java</div>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">Writer-Preference Logic</span>
+        </div>
+        <pre><code><span class="hl-keyword">public synchronized void</span> <span class="hl-func">startRead</span>() <span class="hl-keyword">throws</span> InterruptedException {
+    <span class="hl-comment">// Wait if a writer is active OR any writer is waiting!</span>
+    <span class="hl-keyword">while</span> (writerActive || waitingWriters &gt; 0) {
+        wait();
+    }
+    readers++;
+}
+
+<span class="hl-keyword">public synchronized void</span> <span class="hl-func">startWrite</span>() <span class="hl-keyword">throws</span> InterruptedException {
+    waitingWriters++;
+    <span class="hl-keyword">try</span> {
+        <span class="hl-keyword">while</span> (writerActive || readers &gt; 0) {
+            wait();
+        }
+        writerActive = <span class="hl-keyword">true</span>;
+    } <span class="hl-keyword">finally</span> {
+        waitingWriters--;
+    }
+}</code></pre>
+        <div class="explanation-card">
+          💡 <strong>Writer Preference:</strong>
+          In <code>startRead()</code>, readers check <code>waitingWriters &gt; 0</code>. Even if a reader is already reading, newly arriving readers are blocked as soon as a writer expresses intent to write. Once current readers exit, the waiting writer gets priority, eliminating writer starvation!
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    let sharedData = 0;
+    let readers = 0;
+    let waitingWriters = 0;
+    let writerActive = false;
+
+    let readerSeq = 1;
+    let writerSeq = 1;
+
+    const waitingReadersPool = [];
+    const waitingWritersPool = [];
+    const activeReaders = [];
+    let activeWriter = null;
+
+    let autoRunning = true;
+    let speed = 1.0;
+
+    function log(message, type = 'monitor') {
+      const box = document.getElementById('logContainer');
+      const time = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.className = 'log-entry';
+
+      let cls = 'log-monitor';
+      if (type === 'reader') cls = 'log-reader';
+      else if (type === 'writer') cls = 'log-writer';
+
+      div.innerHTML = `<span class="log-time">[${time}]</span> <span class="${cls}">${message}</span>`;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function updateUI() {
+      document.getElementById('sharedDataDisplay').innerText = sharedData;
+
+      // Status
+      const statusLabel = document.getElementById('monitorStatusLabel');
+      if (writerActive && activeWriter) {
+        statusLabel.innerText = `Status: WRITING by W${activeWriter.id} (Exclusive)`;
+        statusLabel.style.color = '#f59e0b';
+      } else if (readers > 0) {
+        statusLabel.innerText = `Status: CONCURRENT READING by ${readers} reader(s)`;
+        statusLabel.style.color = '#06b6d4';
+      } else {
+        statusLabel.innerText = `Status: IDLE (No active threads)`;
+        statusLabel.style.color = '#94a3b8';
+      }
+
+      // Waiting Pools
+      const wrBox = document.getElementById('waitingReadersContainer');
+      document.getElementById('waitingReadersCount').innerText = `${waitingReadersPool.length} Waiting`;
+      if (waitingReadersPool.length === 0) {
+        wrBox.innerHTML = '<span style="font-size:0.75rem; color:#64748b;">(No readers waiting)</span>';
+      } else {
+        wrBox.innerHTML = waitingReadersPool.map(r =>
+          `<div class="thread-badge thread-reader">📖 R${r.id} (blocked)</div>`
+        ).join('');
+      }
+
+      const wwBox = document.getElementById('waitingWritersContainer');
+      document.getElementById('waitingWritersCount').innerText = `${waitingWritersPool.length} Waiting`;
+      if (waitingWritersPool.length === 0) {
+        wwBox.innerHTML = '<span style="font-size:0.75rem; color:#64748b;">(No writers waiting)</span>';
+      } else {
+        wwBox.innerHTML = waitingWritersPool.map(w =>
+          `<div class="thread-badge thread-writer">✍️ W${w.id} (priority queued)</div>`
+        ).join('');
+      }
+
+      // Active Zones
+      const arBox = document.getElementById('activeReadersContainer');
+      document.getElementById('activeReadersCount').innerText = readers;
+      const readingRoom = document.getElementById('readingRoom');
+      if (activeReaders.length === 0) {
+        arBox.innerHTML = '<span style="font-size:0.75rem; color:#64748b;">(No active readers)</span>';
+        readingRoom.classList.remove('active');
+      } else {
+        readingRoom.classList.add('active');
+        arBox.innerHTML = activeReaders.map(r =>
+          `<div class="thread-badge thread-reader">📖 R${r.id} (reads: ${sharedData})</div>`
+        ).join('');
+      }
+
+      const awBox = document.getElementById('activeWriterContainer');
+      const writingBay = document.getElementById('writingBay');
+      document.getElementById('activeWriterCount').innerText = writerActive ? '1' : '0';
+      if (!activeWriter) {
+        awBox.innerHTML = '<span style="font-size:0.75rem; color:#64748b;">(No active writer)</span>';
+        writingBay.classList.remove('active');
+      } else {
+        writingBay.classList.add('active');
+        awBox.innerHTML = `<div class="thread-badge thread-writer">✍️ W${activeWriter.id} (writing...)</div>`;
+      }
+
+      // Stats
+      document.getElementById('statReaders').innerText = readers;
+      document.getElementById('statWaitingWriters').innerText = waitingWriters;
+      document.getElementById('statWriterActive').innerText = writerActive ? 'true' : 'false';
+      document.getElementById('waDot').className = writerActive ? 'status-dot dot-purple' : 'status-dot dot-green';
+    }
+
+    function spawnReader() {
+      const id = readerSeq++;
+      const reader = { id: id };
+      log(`Reader R${id} called monitor.startRead()`, 'reader');
+
+      // Condition: while (writerActive || waitingWriters > 0) wait();
+      if (writerActive || waitingWriters > 0) {
+        log(`Reader R${id} enters wait() because ${writerActive ? 'writer is active' : 'writer is waiting (Writer Preference)'}`, 'reader');
+        waitingReadersPool.push(reader);
+      } else {
+        startReading(reader);
+      }
+      updateUI();
+    }
+
+    function startReading(reader) {
+      readers++;
+      activeReaders.push(reader);
+      log(`Reader R${reader.id} enters monitor and reads: ${sharedData}`, 'reader');
+      updateUI();
+
+      const readTime = (1600 + Math.random() * 1000) / speed;
+      setTimeout(() => {
+        // endRead()
+        const idx = activeReaders.findIndex(r => r.id === reader.id);
+        if (idx !== -1) activeReaders.splice(idx, 1);
+        readers--;
+        log(`Reader R${reader.id} called monitor.endRead()`, 'reader');
+
+        if (readers === 0) {
+          log(`Last reader exited. Monitor calls notifyAll()`, 'monitor');
+          checkWakeups();
+        }
+        updateUI();
+      }, readTime);
+    }
+
+    function spawnWriter() {
+      const id = writerSeq++;
+      const writer = { id: id };
+      waitingWriters++;
+      log(`Writer W${id} called monitor.startWrite() -> waitingWriters = ${waitingWriters}`, 'writer');
+
+      // Condition: while (writerActive || readers > 0) wait();
+      if (writerActive || readers > 0) {
+        log(`Writer W${id} enters wait() because ${writerActive ? 'another writer active' : readers + ' reader(s) active'}`, 'writer');
+        waitingWritersPool.push(writer);
+      } else {
+        startWriting(writer);
+      }
+      updateUI();
+    }
+
+    function startWriting(writer) {
+      waitingWriters--;
+      writerActive = true;
+      activeWriter = writer;
+      log(`Writer W${writer.id} acquired monitor write access`, 'writer');
+      updateUI();
+
+      const writeTime = 1800 / speed;
+      setTimeout(() => {
+        // endWrite()
+        sharedData++;
+        log(`Writer W${writer.id} wrote: ${sharedData} and called monitor.endWrite()`, 'writer');
+        writerActive = false;
+        activeWriter = null;
+        log(`Monitor calls notifyAll() to wake sleeping threads`, 'monitor');
+        updateUI();
+        checkWakeups();
+      }, writeTime);
+    }
+
+    function checkWakeups() {
+      if (writerActive) return;
+
+      // Prioritize waiting writers
+      if (waitingWritersPool.length > 0 && readers === 0) {
+        const nextWriter = waitingWritersPool.shift();
+        startWriting(nextWriter);
+      } else if (waitingWriters === 0 && waitingReadersPool.length > 0 && !writerActive) {
+        // If no writers waiting, wake up all waiting readers!
+        while (waitingReadersPool.length > 0) {
+          const nextReader = waitingReadersPool.shift();
+          startReading(nextReader);
+        }
+      }
+    }
+
+    function toggleAuto() {
+      autoRunning = !autoRunning;
+      document.getElementById('playIcon').innerText = autoRunning ? '⏸️' : '▶️';
+      document.getElementById('playText').innerText = autoRunning ? 'Pause Auto' : 'Resume Auto';
+    }
+
+    function updateSpeed(val) {
+      speed = parseFloat(val);
+      document.getElementById('speedDisplay').innerText = val + 'x';
+    }
+
+    function resetSim() {
+      sharedData = 0;
+      readers = 0;
+      waitingWriters = 0;
+      writerActive = false;
+      readerSeq = 1;
+      writerSeq = 1;
+      waitingReadersPool.length = 0;
+      waitingWritersPool.length = 0;
+      activeReaders.length = 0;
+      activeWriter = null;
+      log('Monitor simulator reset to initial state.');
+      updateUI();
+    }
+
+    function clearLogs() {
+      document.getElementById('logContainer').innerHTML = '';
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      updateUI();
+      log('Reader-Writer (Monitor) simulator initialized.');
+
+      setTimeout(() => spawnReader(), 500);
+      setTimeout(() => spawnReader(), 1000);
+      setTimeout(() => spawnWriter(), 1500);
+      setTimeout(() => spawnReader(), 2200);
+
+      setInterval(() => {
+        if (!autoRunning) return;
+        if (waitingReadersPool.length + waitingWritersPool.length < 5) {
+          if (Math.random() < 0.6) spawnReader();
+          else spawnWriter();
+        }
+      }, 3500);
+    });
+  </script>
+</body>
+</html>
